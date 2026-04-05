@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Home</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Top Bar ────────────────────────────────────────────────────────── -->
+  <header id="topbar">
+    <div id="clock-time">--:--</div>
+    <div id="clock-date">Loading...</div>
+    <div id="status-icons">
+      <span id="offline-badge" class="badge badge-warn hidden">OFFLINE</span>
+      <span id="sync-indicator" class="hidden">↻</span>
+    </div>
+  </header>
+
+  <!-- ── Screen Container ───────────────────────────────────────────────── -->
+  <main id="screens">
+
+    <!-- Dashboard -->
+    <section class="screen active" id="screen-dashboard">
+      <div class="screen-content">
+        <div class="dash-grid">
+
+          <!-- Today's Events -->
+          <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
+            <div class="card-header">
+              <span class="card-icon">&#128197;</span>
+              <span class="card-title">Today</span>
+              <span class="card-arrow">&#8250;</span>
+            </div>
+            <div class="card-body" id="dash-events-body">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+
+          <!-- Task Summary -->
+          <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
+            <div class="card-header">
+              <span class="card-icon">&#10003;</span>
+              <span class="card-title">Tasks</span>
+              <span class="card-arrow">&#8250;</span>
+            </div>
+            <div class="card-body" id="dash-tasks-body">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+
+          <!-- Camera Preview (hidden until JS confirms camera is configured) -->
+          <div class="dash-card dash-card-wide hidden" id="dash-camera" onclick="App.navigate('camera')">
+            <div class="card-header">
+              <span class="card-icon">&#128247;</span>
+              <span class="card-title">Camera</span>
+              <span class="card-arrow">&#8250;</span>
+            </div>
+            <div class="card-body camera-preview-wrap">
+              <img id="dash-camera-img" src="" alt="Camera">
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Tasks -->
+    <section class="screen" id="screen-tasks">
+      <div class="screen-content">
+        <!-- List view -->
+        <div id="tasks-list-view">
+          <div class="screen-title-row">
+            <h2>Task Lists</h2>
+            <button class="btn-icon" onclick="TasksUI.promptAddList()" aria-label="Add list">+</button>
+          </div>
+          <div id="task-lists-container" class="lists-grid"></div>
+          <div class="hint-text">Hold a list to delete it</div>
+        </div>
+        <!-- Task detail view (slides over) -->
+        <div id="tasks-detail-view" class="slide-panel">
+          <div class="screen-title-row">
+            <button class="btn-back" onclick="TasksUI.closeDetail()">&#8249; Back</button>
+            <h2 id="detail-list-name"></h2>
+            <button class="btn-icon" onclick="TasksUI.promptAddTask()" aria-label="Add task">+</button>
+          </div>
+          <div id="show-completed-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="show-completed-cb" onchange="TasksUI.toggleShowCompleted()">
+              Show completed
+            </label>
+          </div>
+          <div id="task-items-container" class="task-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="screen" id="screen-calendar">
+      <div class="screen-content">
+        <div class="cal-header">
+          <button class="btn-nav" onclick="CalUI.prevMonth()">&#8249;</button>
+          <h2 id="cal-month-label"></h2>
+          <button class="btn-nav" onclick="CalUI.nextMonth()">&#8250;</button>
+        </div>
+        <div id="cal-grid-header" class="cal-grid-header">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span>
+          <span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div id="cal-grid" class="cal-grid"></div>
+        <div id="cal-events-panel" class="cal-events-panel">
+          <div id="cal-events-date"></div>
+          <div id="cal-events-list"></div>
+        </div>
+        <div id="cal-no-creds" class="notice hidden">
+          Google Calendar not connected. Run <code>python google_auth.py</code> on setup machine.
+        </div>
+        <div id="cal-last-sync" class="sync-note"></div>
+      </div>
+    </section>
+
+    <!-- Camera (hidden until JS confirms camera is configured) -->
+    <section class="screen hidden" id="screen-camera">
+      <div class="screen-content camera-fullscreen">
+        <img id="camera-main-img" src="" alt="Live Camera Feed">
+        <div id="camera-overlay">
+          <span class="live-badge">&#9679; LIVE</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Bottom Nav ──────────────────────────────────────────────────────── -->
+  <nav id="bottomnav">
+    <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
+      <span class="nav-icon">&#8962;</span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
+      <span class="nav-icon">&#10003;</span>
+      <span class="nav-label">Tasks</span>
+    </button>
+    <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
+      <span class="nav-icon">&#128197;</span>
+      <span class="nav-label">Calendar</span>
+    </button>
+    <!-- Camera nav button hidden until JS confirms camera is configured -->
+    <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
+      <span class="nav-icon">&#128247;</span>
+      <span class="nav-label">Camera</span>
+    </button>
+  </nav>
+
+  <!-- ── Modal ──────────────────────────────────────────────────────────── -->
+  <div id="modal-overlay" class="hidden" onclick="Modal.closeOnBackdrop(event)">
+    <div id="modal-box">
+      <div id="modal-title"></div>
+      <div id="modal-body"></div>
+      <div id="modal-actions"></div>
+    </div>
+  </div>
+
+  <!-- ── Toast ──────────────────────────────────────────────────────────── -->
+  <div id="toast"></div>
+
+</div><!-- #app -->
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

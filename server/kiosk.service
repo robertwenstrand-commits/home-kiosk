@@ -1,0 +1,26 @@
+# systemd service for the kiosk backend
+# Install to: /etc/systemd/system/kiosk.service
+#
+# Then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable kiosk
+#   sudo systemctl start kiosk
+
+[Unit]
+Description=Home Kiosk Backend
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/kiosk
+ExecStart=/home/pi/kiosk/start.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

@@ -13,7 +13,7 @@ CHROMIUM_FLAGS="--kiosk --noerrdialogs --disable-infobars --no-first-run \
   --disable-translate --disable-features=TranslateUI \
   --disable-session-crashed-bubble --disable-dev-shm-usage \
   --disable-gpu-sandbox --use-gl=egl \
-  app=http://127.0.0.1:5000"
+  app=http://127.0.0.1:2004"
 
 echo "======================================"
 echo " Pi Zero 2 Kiosk Setup"

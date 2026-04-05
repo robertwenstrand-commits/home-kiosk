@@ -22,13 +22,13 @@ nano .env          # fill in HA_URL, HA_TOKEN, and optional camera/calendar sett
 docker compose up -d --build
 ```
 
-The app will be available at `http://YOUR-SYNOLOGY-IP:5000`.
+The app will be available at `http://YOUR-SYNOLOGY-IP:2004`.
 
 ### 2. Set up the Pi (browser only)
 
 ```bash
 chmod +x pi/setup_pi_kiosk.sh
-sudo pi/setup_pi_kiosk.sh http://YOUR-SYNOLOGY-IP:5000
+sudo pi/setup_pi_kiosk.sh http://YOUR-SYNOLOGY-IP:2004
 sudo reboot
 ```
 

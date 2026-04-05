@@ -6,7 +6,7 @@ services:
     container_name: home-kiosk
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "2004:2004"
     volumes:
       # Persistent data: SQLite DB, Google Calendar token
       - ./data:/app/data
@@ -14,6 +14,6 @@ services:
       - ./.env:/app/.env:ro
     environment:
       - HOST=0.0.0.0
-      - PORT=5000
+      - PORT=2004
     # Uncomment to share Docker host network (useful if HA is on the same host)
     # network_mode: host

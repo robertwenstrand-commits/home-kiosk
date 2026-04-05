@@ -12,9 +12,9 @@ COPY . .
 # data/ holds the SQLite DB, calendar token, and .env — mount as a volume
 RUN mkdir -p /app/data
 
-EXPOSE 5000
+EXPOSE 2004
 
 ENV HOST=0.0.0.0
-ENV PORT=5000
+ENV PORT=2004
 
 CMD ["python", "app.py"]

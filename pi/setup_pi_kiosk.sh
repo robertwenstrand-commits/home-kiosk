@@ -5,11 +5,11 @@
 #
 # Usage:
 #   chmod +x setup_pi_kiosk.sh
-#   sudo ./setup_pi_kiosk.sh http://YOUR-SYNOLOGY-IP:5000
+#   sudo ./setup_pi_kiosk.sh http://YOUR-SYNOLOGY-IP:2004
 # ============================================================
 set -e
 
-KIOSK_URL="${1:-http://192.168.1.100:5000}"
+KIOSK_URL="${1:-http://192.168.1.100:2004}"
 AUTOSTART_DIR="/home/pi/.config/autostart"
 
 echo "======================================"

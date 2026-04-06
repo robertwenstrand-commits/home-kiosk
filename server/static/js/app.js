@@ -239,7 +239,9 @@ const DashUI = {
   async loadEvents() {
     const el = document.getElementById('dash-events-body');
     try {
-      const data = await API.get('/api/calendar/today');
+      const d = new Date();
+      const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const data = await API.get(`/api/calendar/today?date=${localDate}`);
       el.innerHTML = '';
       if (!data.has_credentials) {
         el.innerHTML = '<div class="dash-no-events">Calendar not connected</div>';

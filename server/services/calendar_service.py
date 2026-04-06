@@ -138,20 +138,27 @@ def sync_calendars():
 
 
 def get_events_for_range(start_date_str, end_date_str):
-    """Return events between two ISO date strings (YYYY-MM-DD)."""
+    """Return events between two ISO date strings (YYYY-MM-DD).
+
+    Uses substr(start_time, 1, 10) instead of date() because SQLite's date()
+    returns NULL for ISO strings with timezone offsets like '2026-04-05T14:00:00-07:00',
+    which would silently drop all timed events from the results.
+    """
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     rows = conn.execute("""
         SELECT * FROM calendar_events
-        WHERE date(start_time) >= ? AND date(start_time) <= ?
+        WHERE substr(start_time, 1, 10) >= ? AND substr(start_time, 1, 10) <= ?
         ORDER BY all_day DESC, start_time
     """, (start_date_str, end_date_str)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def get_today_events():
-    today = datetime.now().date().isoformat()
+def get_today_events(date_str=None):
+    """Return today's events. Accepts an explicit date so callers can pass
+    the client's local date rather than relying on the server's timezone."""
+    today = date_str or datetime.now().date().isoformat()
     return get_events_for_range(today, today)
 
 

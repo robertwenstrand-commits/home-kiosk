@@ -150,8 +150,10 @@ def api_calendar_events():
 
 @app.route('/api/calendar/today')
 def api_today_events():
+    # Accept client-supplied date so the server timezone doesn't matter
+    date_str = request.args.get('date') or None
     return jsonify({
-        'events': calendar_svc.get_today_events(),
+        'events': calendar_svc.get_today_events(date_str),
         'last_sync': calendar_svc.get_last_sync(),
         'has_credentials': calendar_svc.has_credentials(),
     })

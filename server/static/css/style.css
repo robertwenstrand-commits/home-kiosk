@@ -26,7 +26,8 @@
 
 html, body {
   height: 100%;
-  overflow: hidden;
+  /* NO overflow:hidden — iOS Safari breaks position:fixed when body has overflow:hidden */
+  overscroll-behavior: none; /* prevent pull-to-refresh bounce without breaking fixed */
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -36,16 +37,18 @@ html, body {
 }
 
 /* ── App Shell ─────────────────────────────────────────────────────────── */
+/* All three zones (topbar/screens/bottomnav) are position:fixed to the
+   actual viewport — immune to mobile browser chrome height changes */
 #app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  position: relative;
 }
 
 /* ── Top Bar ───────────────────────────────────────────────────────────── */
 #topbar {
-  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: var(--topbar-h);
   background: var(--bg3);
   border-bottom: 1px solid var(--border);
@@ -53,7 +56,22 @@ html, body {
   align-items: center;
   padding: 0 16px;
   gap: 12px;
-  z-index: 10;
+  z-index: 50;
+}
+
+#topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+#topbar-date-temp {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 #clock-time {
@@ -61,19 +79,30 @@ html, body {
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--accent);
-  min-width: 90px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #clock-date {
   font-size: 14px;
+  font-weight: 600;
   color: var(--text-dim);
-  flex: 1;
+  white-space: nowrap;
+}
+
+#air-temp-display {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
 }
 
 #status-icons {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .badge {
@@ -95,8 +124,11 @@ html, body {
 
 /* ── Screens ───────────────────────────────────────────────────────────── */
 #screens {
-  flex: 1;
-  position: relative;
+  position: fixed;
+  top: 56px;  /* --topbar-h */
+  bottom: 70px; /* --bottomnav-h */
+  left: 0;
+  right: 0;
   overflow: hidden;
 }
 
@@ -138,12 +170,15 @@ html, body {
 
 /* ── Bottom Nav ────────────────────────────────────────────────────────── */
 #bottomnav {
-  flex-shrink: 0;
-  height: var(--bottomnav-h);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70px; /* --bottomnav-h — plain px avoids calc/env parse issues */
   background: var(--bg3);
   border-top: 1px solid var(--border);
   display: flex;
-  z-index: 10;
+  z-index: 50;
 }
 
 .nav-btn {
@@ -323,24 +358,130 @@ html, body {
 .dash-no-events { color: var(--text-muted); font-size: 13px; font-style: italic; }
 
 /* Dashboard tasks summary */
-.dash-list-row {
+.dash-list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-list-name { flex: 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
+.dash-list-count { font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+.dash-list-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  margin-bottom: 3px;
+  animation: fadeSlideUp 0.3s both;
+}
+.dash-list-header:first-child { margin-top: 0; }
+
+.dash-task-item {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 0 2px 14px;
+  animation: fadeSlideUp 0.3s both;
+}
+
+.dash-task-bullet {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.dash-task-title {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-task-more {
+  padding-left: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(to right, var(--text-muted) 0%, transparent 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fadeSlideUp 0.3s both;
+}
+
+/* ── Lights pane (dashboard) ────────────────────────────────────────────── */
+.dash-lights-pane {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px 16px 16px;
+  margin-top: 14px;
+  width: calc(50% - 7px);
+}
+
+.dash-lights-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-  animation: fadeSlideUp 0.3s both;
+  margin-bottom: 12px;
 }
-.dash-list-row:last-child { margin-bottom: 0; }
-.dash-list-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dash-list-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dash-list-count {
+
+.dash-lights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.light-tile {
   background: var(--surface2);
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 12px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 0;
 }
+.light-tile:active { background: var(--border); }
+
+.light-tile.active {
+  border-color: var(--warn);
+  background: rgba(255, 209, 102, 0.12);
+}
+
+.light-tile.unavailable {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.light-tile-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.light-tile-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.light-tile-state {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+.light-tile.active .light-tile-state { color: var(--warn); }
 
 /* Camera preview */
 .camera-preview-wrap {
@@ -385,6 +526,33 @@ html, body {
   font-weight: 800;
   margin-bottom: 4px;
 }
+.list-card-count-badge {
+  font-size: 15px;
+  font-weight: 800;
+  margin-left: auto;
+  padding: 2px 8px;
+  background: var(--bg);
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.list-card-tasks {
+  margin: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.list-card-task {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 0;
+}
+.list-card-empty {
+  font-style: italic;
+  color: var(--text-muted);
+}
 .list-card-sub { font-size: 12px; color: var(--text-dim); }
 
 /* Slide panel (task detail) */
@@ -428,12 +596,14 @@ html, body {
   justify-content: center;
   flex-shrink: 0;
   transition: background 0.2s, border-color 0.2s;
-  font-size: 14px;
+  font-size: 16px;
+  color: var(--text-muted);
 }
 .task-item.completed .task-check {
   background: var(--success);
   border-color: var(--success);
   color: #0f0f1a;
+  font-size: 14px;
 }
 
 .task-title {
@@ -795,6 +965,435 @@ html, body {
   color: var(--text-muted);
   margin-top: 12px;
   letter-spacing: 0.3px;
+}
+
+/* ── Garage Lock Widget ──────────────────────────────────────────────────── */
+#garage-lock-btn {
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  transition: color 0.3s, opacity 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+#garage-lock-btn:active { opacity: 0.5; }
+
+#garage-lock-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#garage-lock-icon svg { width: 32px; height: 32px; }
+
+/* ── Gate Widget ─────────────────────────────────────────────────────────── */
+#gate-widget {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#gate-status-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color 0.4s;
+}
+
+#gate-status-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+#gate-btn {
+  height: auto;
+  min-width: 72px;
+  padding: 6px 12px 4px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: background 0.15s, border-color 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+#gate-btn-label {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#gate-btn-hint {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#gate-btn.hold-active {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: rgba(255, 209, 102, 0.1);
+}
+
+#gate-btn.hold-active #gate-btn-hint { color: rgba(255, 209, 102, 0.5); }
+
+#gate-btn:active { background: var(--surface); }
+
+/* Hold-open duration modal */
+.hold-modal-body {
+  padding: 4px 0 8px;
+}
+
+.hold-duration-display {
+  text-align: center;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+
+.hold-range {
+  width: 100%;
+  height: 52px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.hold-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+}
+
+.hold-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  margin-top: -17px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.hold-range::-moz-range-track {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+}
+
+.hold-range::-moz-range-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.hold-range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 4px 0;
+}
+
+/* ── Air Temp (topbar) ───────────────────────────────────────────────────── */
+#air-temp-display {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+/* ── Pool Screen ────────────────────────────────────────────────────────── */
+.pool-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 16px 0 8px;
+}
+.pool-section-label:first-child { margin-top: 0; }
+
+/* Pool & Spa zones — side by side */
+.pool-zones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pool-zone-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pool-zone-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.pool-zone-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pool-zone-temp {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pool-zone-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pool-ctrl-btn {
+  background: var(--surface2);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-ctrl-btn:active { background: var(--border); }
+.pool-ctrl-btn.active {
+  border-color: var(--accent);
+  background: rgba(78,205,196,0.1);
+}
+
+.pool-ctrl-icon { font-size: 20px; line-height: 1; }
+.pool-ctrl-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.pool-ctrl-state {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.pool-ctrl-btn.active .pool-ctrl-state { color: var(--accent); }
+
+/* Set point within each zone */
+.pool-zone-setpoint {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pool-mode-row {
+  display: flex;
+  gap: 6px;
+}
+
+.pool-mode-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(78,205,196,0.1);
+}
+
+.pool-temp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pool-temp-adj {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-temp-adj:active { border-color: var(--accent); background: var(--surface); }
+
+.pool-temp-display {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+  min-width: 76px;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+/* Lights & Features */
+.pool-features-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.pool-feat-btn {
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-feat-btn:active { background: var(--surface2); }
+.pool-feat-btn.active {
+  border-color: var(--warn);
+  background: rgba(255,209,102,0.08);
+}
+.pool-feat-btn.active .pool-ctrl-state { color: var(--warn); }
+
+/* Light effects horizontal scroll */
+.pool-effects-row {
+  margin-top: 2px;
+}
+.pool-effects-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0 10px;
+  scrollbar-width: none;
+}
+.pool-effects-scroll::-webkit-scrollbar { display: none; }
+
+.pool-effect-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-effect-btn.active {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: rgba(255,209,102,0.1);
+}
+
+/* Water Quality */
+.pool-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.pool-quality-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+/* Last row: 2 cards centred */
+.pool-quality-card:nth-child(4),
+.pool-quality-card:nth-child(5) {
+  grid-column: auto;
+}
+
+.pool-quality-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pool-quality-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.pool-quality-unit {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────────────── */

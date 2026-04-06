@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   kiosk:
-    build: .
+    image: home-kiosk:latest
     container_name: home-kiosk
     restart: unless-stopped
     ports:

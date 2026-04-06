@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -12,11 +12,26 @@
 
   <!-- ── Top Bar ────────────────────────────────────────────────────────── -->
   <header id="topbar">
-    <div id="clock-time">--:--</div>
-    <div id="clock-date">Loading...</div>
+    <div id="topbar-left">
+      <div id="clock-time">--:--</div>
+      <div id="topbar-date-temp">
+        <div id="clock-date">Loading...</div>
+        <div id="air-temp-display" class="hidden">&#127782; <span id="air-temp-val"></span></div>
+      </div>
+    </div>
     <div id="status-icons">
       <span id="offline-badge" class="badge badge-warn hidden">OFFLINE</span>
       <span id="sync-indicator" class="hidden">↻</span>
+      <button id="garage-lock-btn" title="Garage Door" onclick="GarageUI.toggle()">
+        <div id="garage-lock-icon"></div>
+      </button>
+      <div id="gate-widget">
+        <div id="gate-status-icon" title="Back Gate"></div>
+        <button id="gate-btn">
+          <span id="gate-btn-label">Open</span>
+          <span id="gate-btn-hint">Hold to Extend</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -65,6 +80,18 @@
           </div>
 
         </div>
+
+        <!-- Lights & Switches pane -->
+        <div class="dash-lights-pane">
+          <div class="dash-lights-header">
+            <span class="card-icon">&#128161;</span>
+            <span class="card-title">Lights &amp; Switches</span>
+          </div>
+          <div id="dash-lights-grid" class="dash-lights-grid">
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -132,6 +159,136 @@
       </div>
     </section>
 
+    <!-- Pool -->
+    <section class="screen" id="screen-pool">
+      <div class="screen-content">
+
+        <!-- Pool & Spa Zones -->
+        <div class="pool-section-label">Pool &amp; Spa</div>
+        <div class="pool-zones">
+
+          <!-- Pool Zone -->
+          <div class="pool-zone-card">
+            <div class="pool-zone-header">
+              <span class="pool-zone-name">Pool</span>
+              <span class="pool-zone-temp" id="pool-temp-val">--</span>
+            </div>
+            <div class="pool-zone-btns">
+              <button class="pool-ctrl-btn" id="pool-pump-btn" onclick="PoolUI.toggleSwitch('switch.pool_pump','pool-pump-btn','pool-pump-state')">
+                <span class="pool-ctrl-icon">&#9881;</span>
+                <span class="pool-ctrl-label">Pump</span>
+                <span class="pool-ctrl-state" id="pool-pump-state">--</span>
+              </button>
+              <button class="pool-ctrl-btn" id="pool-heater-btn" onclick="PoolUI.toggleSwitch('switch.pool_heater','pool-heater-btn','pool-heater-state')">
+                <span class="pool-ctrl-icon">&#128293;</span>
+                <span class="pool-ctrl-label">Heater</span>
+                <span class="pool-ctrl-state" id="pool-heater-state">--</span>
+              </button>
+            </div>
+            <div class="pool-zone-setpoint">
+              <div class="pool-mode-row">
+                <button class="pool-mode-btn" id="pool-mode-off" onclick="PoolUI.setMode('climate.pool_set_point_pool','pool','off')">OFF</button>
+                <button class="pool-mode-btn" id="pool-mode-heat" onclick="PoolUI.setMode('climate.pool_set_point_pool','pool','heat')">HEAT</button>
+              </div>
+              <div class="pool-temp-row">
+                <button class="pool-temp-adj" onclick="PoolUI.adjustTemp('climate.pool_set_point_pool','pool',-1)">&#8722;</button>
+                <div class="pool-temp-display" id="pool-setpoint-val">--&deg;F</div>
+                <button class="pool-temp-adj" onclick="PoolUI.adjustTemp('climate.pool_set_point_pool','pool',+1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spa Zone -->
+          <div class="pool-zone-card">
+            <div class="pool-zone-header">
+              <span class="pool-zone-name">Spa</span>
+              <span class="pool-zone-temp" id="spa-temp-val">--</span>
+            </div>
+            <div class="pool-zone-btns">
+              <button class="pool-ctrl-btn" id="spa-pump-btn" onclick="PoolUI.toggleSwitch('switch.spa_pump','spa-pump-btn','spa-pump-state')">
+                <span class="pool-ctrl-icon">&#9881;</span>
+                <span class="pool-ctrl-label">Pump</span>
+                <span class="pool-ctrl-state" id="spa-pump-state">--</span>
+              </button>
+              <button class="pool-ctrl-btn" id="spa-heater-btn" onclick="PoolUI.toggleSwitch('switch.spa_heater','spa-heater-btn','spa-heater-state')">
+                <span class="pool-ctrl-icon">&#128293;</span>
+                <span class="pool-ctrl-label">Heater</span>
+                <span class="pool-ctrl-state" id="spa-heater-state">--</span>
+              </button>
+            </div>
+            <div class="pool-zone-setpoint">
+              <div class="pool-mode-row">
+                <button class="pool-mode-btn" id="spa-mode-off" onclick="PoolUI.setMode('climate.spa_set_point_spa','spa','off')">OFF</button>
+                <button class="pool-mode-btn" id="spa-mode-heat" onclick="PoolUI.setMode('climate.spa_set_point_spa','spa','heat')">HEAT</button>
+              </div>
+              <div class="pool-temp-row">
+                <button class="pool-temp-adj" onclick="PoolUI.adjustTemp('climate.spa_set_point_spa','spa',-1)">&#8722;</button>
+                <div class="pool-temp-display" id="spa-setpoint-val">--&deg;F</div>
+                <button class="pool-temp-adj" onclick="PoolUI.adjustTemp('climate.spa_set_point_spa','spa',+1)">+</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Lights & Features -->
+        <div class="pool-section-label">Lights &amp; Features</div>
+        <div class="pool-features-row">
+          <button class="pool-feat-btn" id="pool-light-btn" onclick="PoolUI.toggleLight()">
+            <span class="pool-ctrl-icon">&#128161;</span>
+            <span class="pool-ctrl-label">Light</span>
+            <span class="pool-ctrl-state" id="pool-light-state">--</span>
+          </button>
+          <button class="pool-feat-btn" id="pool-spillover-btn" onclick="PoolUI.toggleSwitch('switch.spillover','pool-spillover-btn','pool-spillover-state')">
+            <span class="pool-ctrl-icon">&#128166;</span>
+            <span class="pool-ctrl-label">Spillover</span>
+            <span class="pool-ctrl-state" id="pool-spillover-state">--</span>
+          </button>
+          <button class="pool-feat-btn" id="pool-waterfall-btn" onclick="PoolUI.toggleSwitch('switch.waterfall','pool-waterfall-btn','pool-waterfall-state')">
+            <span class="pool-ctrl-icon">&#127754;</span>
+            <span class="pool-ctrl-label">Waterfall</span>
+            <span class="pool-ctrl-state" id="pool-waterfall-state">--</span>
+          </button>
+        </div>
+
+        <!-- Light Effects (shown when light is on) -->
+        <div id="pool-effects-row" class="pool-effects-row hidden">
+          <div class="pool-effects-scroll" id="pool-effects-scroll"></div>
+        </div>
+
+        <!-- Water Quality -->
+        <div class="pool-section-label">Water Quality</div>
+        <div class="pool-quality-grid">
+          <div class="pool-quality-card">
+            <div class="pool-quality-label">Air Temp</div>
+            <div class="pool-quality-value" id="q-air-temp">--</div>
+            <div class="pool-quality-unit">&deg;F</div>
+          </div>
+          <div class="pool-quality-card">
+            <div class="pool-quality-label">pH</div>
+            <div class="pool-quality-value" id="q-ph">--</div>
+            <div class="pool-quality-unit">&nbsp;</div>
+          </div>
+          <div class="pool-quality-card" title="Oxidation Reduction Potential — measures sanitization effectiveness">
+            <div class="pool-quality-label">ORP</div>
+            <div class="pool-quality-value" id="q-orp">--</div>
+            <div class="pool-quality-unit">mV</div>
+          </div>
+          <div class="pool-quality-card">
+            <div class="pool-quality-label">Pool Salt</div>
+            <div class="pool-quality-value" id="q-pool-sal">--</div>
+            <div class="pool-quality-unit">&nbsp;</div>
+          </div>
+          <div class="pool-quality-card">
+            <div class="pool-quality-label">Spa Salt</div>
+            <div class="pool-quality-value" id="q-spa-sal">--</div>
+            <div class="pool-quality-unit">&nbsp;</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- ── Bottom Nav ──────────────────────────────────────────────────────── -->
@@ -152,6 +309,10 @@
     <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
       <span class="nav-icon">&#128247;</span>
       <span class="nav-label">Camera</span>
+    </button>
+    <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
+      <span class="nav-icon">&#127946;</span>
+      <span class="nav-label">Pool</span>
     </button>
   </nav>
 

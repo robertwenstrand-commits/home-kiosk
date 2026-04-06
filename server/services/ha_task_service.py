@@ -113,18 +113,22 @@ def delete_list(entity_id):
         return False
     try:
         # Find the config entry ID for this entity
-        r = requests.get(f'{HA_URL}/api/config/config_entries', headers=_headers(), timeout=_TIMEOUT)
+        r = requests.get(f'{HA_URL}/api/config/config_entries/entry', headers=_headers(), timeout=_TIMEOUT)
         r.raise_for_status()
         entry_id = None
+        entity_name = entity_id.replace('todo.', '')  # e.g. 'shopping_list'
         for entry in r.json():
-            if entry.get('domain') == 'local_todo' and entry.get('title', '').lower() in entity_id:
+            if entry.get('domain') != 'local_todo':
+                continue
+            title_slug = entry.get('title', '').lower().replace(' ', '_')
+            if title_slug == entity_name:
                 entry_id = entry['entry_id']
                 break
         if not entry_id:
             logger.warning(f'No config entry found for {entity_id}')
             return False
         r2 = requests.delete(
-            f'{HA_URL}/api/config/config_entries/{entry_id}',
+            f'{HA_URL}/api/config/config_entries/entry/{entry_id}',
             headers=_headers(),
             timeout=_TIMEOUT,
         )
@@ -143,16 +147,17 @@ def get_tasks(entity_id, include_completed=True):
         return []
     try:
         r = requests.post(
-            f'{HA_URL}/api/services/todo/get_items',
+            f'{HA_URL}/api/services/todo/get_items?return_response',
             headers=_headers(),
             json={'entity_id': entity_id},
             timeout=_TIMEOUT,
         )
         r.raise_for_status()
-        # HA returns a dict keyed by entity_id
+        # HA returns {service_response: {entity_id: {items: [...]}}}
         data = r.json()
+        entity_data = data.get('service_response', data)
         items = []
-        for eid, result in data.items():
+        for eid, result in entity_data.items():
             for item in result.get('items', []):
                 status = item.get('status', 'needs_action')
                 completed = status == 'completed'

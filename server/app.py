@@ -245,7 +245,7 @@ def api_garage_lock():
 # ── Gate API ───────────────────────────────────────────────────────────────────
 
 GATE_ENTITY = 'cover.garage_door_door_1'
-GATE_HOLD_INTERVAL = 20  # seconds between auto-opens during hold
+GATE_HOLD_INTERVAL = 8  # seconds between auto-opens during hold
 
 # Server-side hold-open state
 _gate_hold = {'active': False, 'end_time': 0.0}

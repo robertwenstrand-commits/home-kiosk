@@ -75,7 +75,7 @@ def sync_calendars():
             return False
 
         now = datetime.now(timezone.utc)
-        time_min = now.isoformat()
+        time_min = (now - timedelta(days=365)).isoformat()
         time_max = (now + timedelta(days=60)).isoformat()
 
         # Calendar color map

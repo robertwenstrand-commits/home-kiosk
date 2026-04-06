@@ -357,7 +357,7 @@ const TasksUI = {
         );
 
         const previewItems = tasks.slice(0, 4).map(t =>
-          `<div class="list-card-task">${esc(t.title)}</div>`
+          `<div class="list-card-task"><div class="list-card-task-check"></div><span class="list-card-task-title">${esc(t.title)}</span></div>`
         ).join('');
         const preview = previewItems ||
           `<div class="list-card-task list-card-empty">${lst.pending ? '' : 'All done!'}</div>`;
@@ -1408,10 +1408,11 @@ function _buildDayBulletsHtml(evs) {
   const MAX  = 3;
   const more = evs.length - MAX;
   const rows = evs.slice(0, MAX).map(ev =>
-    `<div class="cal-day-bullet" style="color:${ev.color || 'var(--accent)'}">` +
+    `<div class="cal-day-bullet">` +
+    `<span class="cal-day-bullet-dot" style="color:${ev.color || 'var(--accent)'}">•</span>` +
     `${esc(ev.title)}</div>`
   );
-  if (more > 0) rows.push(`<div class="cal-day-bullet-more">+${more}</div>`);
+  if (more > 0) rows.push(`<div class="cal-day-bullet-more">+${more} more</div>`);
   return `<div class="cal-day-bullets">${rows.join('')}</div>`;
 }
 

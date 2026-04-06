@@ -43,11 +43,11 @@
       <div class="screen-content">
         <div class="dash-grid">
 
-          <!-- Today's Events -->
-          <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
+          <!-- Schedule (Today + Tomorrow) -->
+          <div class="dash-card dash-card-wide" id="dash-events" onclick="App.navigate('calendar')">
             <div class="card-header">
               <span class="card-icon">&#128197;</span>
-              <span class="card-title">Today</span>
+              <span class="card-title">Schedule</span>
               <span class="card-arrow">&#8250;</span>
             </div>
             <div class="card-body" id="dash-events-body">
@@ -67,17 +67,6 @@
             </div>
           </div>
 
-          <!-- Powerwall -->
-          <div class="dash-card" id="dash-powerwall">
-            <div class="card-header">
-              <span class="card-icon">&#9889;</span>
-              <span class="card-title">Powerwall</span>
-            </div>
-            <div class="card-body" id="dash-powerwall-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
-            </div>
-          </div>
-
           <!-- Catbox Prime -->
           <div class="dash-card" id="dash-catbox">
             <div class="card-header">
@@ -85,6 +74,17 @@
               <span class="card-title">Litter Box</span>
             </div>
             <div class="card-body" id="dash-catbox-body">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+
+          <!-- Powerwall -->
+          <div class="dash-card" id="dash-powerwall">
+            <div class="card-header">
+              <span class="card-icon">&#9889;</span>
+              <span class="card-title">Powerwall</span>
+            </div>
+            <div class="card-body" id="dash-powerwall-body">
               <div class="loading-dots"><span></span><span></span><span></span></div>
             </div>
           </div>

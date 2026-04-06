@@ -239,32 +239,45 @@ const DashUI = {
   async loadEvents() {
     const el = document.getElementById('dash-events-body');
     try {
-      const d = new Date();
-      const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const data = await API.get(`/api/calendar/today?date=${localDate}`);
-      el.innerHTML = '';
-      if (!data.has_credentials) {
+      const today    = _localDateStr(new Date());
+      const tomorrow = _localDateStr(new Date(Date.now() + 86400000));
+      const [todayData, tomorrowData] = await Promise.all([
+        API.get(`/api/calendar/today?date=${today}`),
+        API.get(`/api/calendar/today?date=${tomorrow}`),
+      ]);
+      if (!todayData.has_credentials) {
         el.innerHTML = '<div class="dash-no-events">Calendar not connected</div>';
         return;
       }
-      if (!data.events.length) {
-        el.innerHTML = '<div class="dash-no-events">No events today</div>';
-        return;
-      }
-      data.events.forEach(ev => {
-        const d = document.createElement('div');
-        d.className = 'dash-event';
-        d.innerHTML = `
-          <div class="event-dot" style="background:${ev.color || '#4ecdc4'}"></div>
-          <div class="event-info">
-            <div class="event-title">${esc(ev.title)}</div>
-            <div class="event-time">${formatEventTime(ev)}</div>
-          </div>`;
-        el.appendChild(d);
-      });
+      el.innerHTML = '<div class="dash-events-cols"><div id="dash-col-today"></div><div id="dash-col-tomorrow"></div></div>';
+      this._renderEventCol('dash-col-today',    todayData.events,    'Today');
+      this._renderEventCol('dash-col-tomorrow', tomorrowData.events, 'Tomorrow');
     } catch {
       el.innerHTML = '<div class="dash-no-events">Offline</div>';
     }
+  },
+
+  _renderEventCol(containerId, events, heading) {
+    const col = document.getElementById(containerId);
+    const head = document.createElement('div');
+    head.className = 'dash-col-head';
+    head.textContent = heading;
+    col.appendChild(head);
+    if (!events.length) {
+      col.insertAdjacentHTML('beforeend', '<div class="dash-no-events">No events</div>');
+      return;
+    }
+    events.forEach(ev => {
+      const d = document.createElement('div');
+      d.className = 'dash-event';
+      d.innerHTML = `
+        <div class="event-dot" style="background:${ev.color || '#4ecdc4'}"></div>
+        <div class="event-info">
+          <div class="event-title">${esc(ev.title)}</div>
+          <div class="event-time">${formatEventTime(ev)}</div>
+        </div>`;
+      col.appendChild(d);
+    });
   },
 
   async loadTasks() {
@@ -1443,6 +1456,11 @@ const CompletionStore = {
 };
 
 /* ── Shared Helpers ─────────────────────────────────────────────────────── */
+
+/** Format a Date as YYYY-MM-DD in the device's local timezone. */
+function _localDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 /** Fetch pending tasks for all lists in parallel; failed lists return []. */
 async function _fetchPendingTasks(lists) {

@@ -41,76 +41,81 @@
     <!-- Dashboard -->
     <section class="screen active" id="screen-dashboard">
       <div class="screen-content">
-        <div class="dash-grid">
+        <div class="dash-layout">
 
-          <!-- Schedule (Today + Tomorrow) -->
-          <div class="dash-card dash-card-wide" id="dash-events" onclick="App.navigate('calendar')">
-            <div class="card-header">
-              <span class="card-icon">&#128197;</span>
-              <span class="card-title">Schedule</span>
-              <span class="card-arrow">&#8250;</span>
+          <!-- Left column: Schedule + Lights -->
+          <div class="dash-col-left">
+
+            <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
+              <div class="card-header">
+                <span class="card-icon">&#128197;</span>
+                <span class="card-title">Schedule</span>
+                <span class="card-arrow">&#8250;</span>
+              </div>
+              <div class="card-body" id="dash-events-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
             </div>
-            <div class="card-body" id="dash-events-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
+
+            <div class="dash-lights-pane">
+              <div class="dash-lights-header">
+                <span class="card-icon">&#128161;</span>
+                <span class="card-title">Lights &amp; Switches</span>
+              </div>
+              <div id="dash-lights-grid" class="dash-lights-grid">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
             </div>
+
+          </div><!-- .dash-col-left -->
+
+          <!-- Right column: Tasks + Litter Box + Powerwall -->
+          <div class="dash-col-right">
+
+            <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
+              <div class="card-header">
+                <span class="card-icon">&#10003;</span>
+                <span class="card-title">Tasks</span>
+                <span class="card-arrow">&#8250;</span>
+              </div>
+              <div class="card-body" id="dash-tasks-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+            <div class="dash-card" id="dash-catbox">
+              <div class="card-header">
+                <span class="card-icon">&#128049;</span>
+                <span class="card-title">Litter Box</span>
+              </div>
+              <div class="card-body" id="dash-catbox-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+            <div class="dash-card" id="dash-powerwall">
+              <div class="card-header">
+                <span class="card-icon">&#9889;</span>
+                <span class="card-title">Powerwall</span>
+              </div>
+              <div class="card-body" id="dash-powerwall-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+          </div><!-- .dash-col-right -->
+
+        </div><!-- .dash-layout -->
+
+        <!-- Camera Preview (hidden until JS confirms camera is configured) -->
+        <div class="dash-card hidden" id="dash-camera" onclick="App.navigate('camera')" style="margin-top:14px">
+          <div class="card-header">
+            <span class="card-icon">&#128247;</span>
+            <span class="card-title">Camera</span>
+            <span class="card-arrow">&#8250;</span>
           </div>
-
-          <!-- Task Summary -->
-          <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
-            <div class="card-header">
-              <span class="card-icon">&#10003;</span>
-              <span class="card-title">Tasks</span>
-              <span class="card-arrow">&#8250;</span>
-            </div>
-            <div class="card-body" id="dash-tasks-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
-            </div>
-          </div>
-
-          <!-- Catbox Prime -->
-          <div class="dash-card" id="dash-catbox">
-            <div class="card-header">
-              <span class="card-icon">&#128049;</span>
-              <span class="card-title">Litter Box</span>
-            </div>
-            <div class="card-body" id="dash-catbox-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
-            </div>
-          </div>
-
-          <!-- Powerwall -->
-          <div class="dash-card" id="dash-powerwall">
-            <div class="card-header">
-              <span class="card-icon">&#9889;</span>
-              <span class="card-title">Powerwall</span>
-            </div>
-            <div class="card-body" id="dash-powerwall-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
-            </div>
-          </div>
-
-          <!-- Camera Preview (hidden until JS confirms camera is configured) -->
-          <div class="dash-card dash-card-wide hidden" id="dash-camera" onclick="App.navigate('camera')">
-            <div class="card-header">
-              <span class="card-icon">&#128247;</span>
-              <span class="card-title">Camera</span>
-              <span class="card-arrow">&#8250;</span>
-            </div>
-            <div class="card-body camera-preview-wrap">
-              <img id="dash-camera-img" src="" alt="Camera">
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Lights & Switches pane -->
-        <div class="dash-lights-pane">
-          <div class="dash-lights-header">
-            <span class="card-icon">&#128161;</span>
-            <span class="card-title">Lights &amp; Switches</span>
-          </div>
-          <div id="dash-lights-grid" class="dash-lights-grid">
-            <div class="loading-dots"><span></span><span></span><span></span></div>
+          <div class="card-body camera-preview-wrap">
+            <img id="dash-camera-img" src="" alt="Camera">
           </div>
         </div>
 

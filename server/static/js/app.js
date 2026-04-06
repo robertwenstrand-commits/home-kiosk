@@ -1059,11 +1059,11 @@ const GateUI = {
     if (!icon) return;
     if (state === 'open') {
       icon.innerHTML = GATE_OPEN_SVG;
-      icon.style.color = 'var(--success)';
+      icon.style.color = 'var(--danger)';
       icon.title = 'Back Gate: Open';
     } else if (state === 'closed') {
       icon.innerHTML = GATE_CLOSED_SVG;
-      icon.style.color = 'var(--danger)';
+      icon.style.color = 'var(--success)';
       icon.title = 'Back Gate: Closed';
     } else {
       icon.innerHTML = GATE_CLOSED_SVG;

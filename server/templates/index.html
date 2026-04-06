@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=4">
+  <link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
 <body>
 
@@ -138,10 +138,6 @@
           <span>Thu</span><span>Fri</span><span>Sat</span>
         </div>
         <div id="cal-grid" class="cal-grid"></div>
-        <div id="cal-events-panel" class="cal-events-panel">
-          <div id="cal-events-date"></div>
-          <div id="cal-events-list"></div>
-        </div>
         <div id="cal-no-creds" class="notice hidden">
           Google Calendar not connected. Run <code>python google_auth.py</code> on setup machine.
         </div>
@@ -291,31 +287,6 @@
 
   </main>
 
-  <!-- ── Bottom Nav ──────────────────────────────────────────────────────── -->
-  <nav id="bottomnav">
-    <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
-      <span class="nav-icon">&#8962;</span>
-      <span class="nav-label">Home</span>
-    </button>
-    <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
-      <span class="nav-icon">&#10003;</span>
-      <span class="nav-label">Tasks</span>
-    </button>
-    <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
-      <span class="nav-icon">&#128197;</span>
-      <span class="nav-label">Calendar</span>
-    </button>
-    <!-- Camera nav button hidden until JS confirms camera is configured -->
-    <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
-      <span class="nav-icon">&#128247;</span>
-      <span class="nav-label">Camera</span>
-    </button>
-    <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
-      <span class="nav-icon">&#127946;</span>
-      <span class="nav-label">Pool</span>
-    </button>
-  </nav>
-
   <!-- ── Modal ──────────────────────────────────────────────────────────── -->
   <div id="modal-overlay" class="hidden" onclick="Modal.closeOnBackdrop(event)">
     <div id="modal-box">
@@ -330,6 +301,42 @@
 
 </div><!-- #app -->
 
-<script src="/static/js/app.js?v=4"></script>
+<!-- Calendar Day View — outside #app so no stacking-context interference -->
+<div id="cal-day-view-overlay"></div>
+<div id="cal-day-view">
+  <div id="cal-day-view-header">
+    <div id="cal-day-view-date"></div>
+    <button id="cal-day-view-close" aria-label="Close day view">&#10005;</button>
+  </div>
+  <div id="cal-day-view-list"></div>
+</div>
+
+<!-- Bottom nav is a direct child of body — keeps it outside any ancestor
+     stacking context or transform that could interfere with position:fixed -->
+<nav id="bottomnav">
+  <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
+    <span class="nav-icon">&#8962;</span>
+    <span class="nav-label">Home</span>
+  </button>
+  <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
+    <span class="nav-icon">&#10003;</span>
+    <span class="nav-label">Tasks</span>
+  </button>
+  <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
+    <span class="nav-icon">&#128197;</span>
+    <span class="nav-label">Calendar</span>
+  </button>
+  <!-- Camera nav button hidden until JS confirms camera is configured -->
+  <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
+    <span class="nav-icon">&#128247;</span>
+    <span class="nav-label">Camera</span>
+  </button>
+  <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
+    <span class="nav-icon">&#127946;</span>
+    <span class="nav-label">Pool</span>
+  </button>
+</nav>
+
+<script src="/static/js/app.js?v=7"></script>
 </body>
 </html>

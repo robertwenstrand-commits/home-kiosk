@@ -103,6 +103,24 @@ def api_toggle_task():
     return jsonify(result)
 
 
+@app.route('/api/tasks/update', methods=['POST'])
+def api_update_task():
+    data = request.get_json(force=True)
+    entity_id = data.get('entity_id', '').strip()
+    item_uid  = data.get('item_uid', '').strip()
+    title     = (data.get('title') or '').strip()
+    if not entity_id or not item_uid or not title:
+        return jsonify({'error': 'entity_id, item_uid, and title required'}), 400
+    result = ha_tasks.update_task(
+        entity_id, item_uid, title,
+        due_date=data.get('due_date') or None,
+        description=data.get('description') or None,
+    )
+    if result is None:
+        return jsonify({'error': 'failed to update task'}), 502
+    return jsonify(result)
+
+
 @app.route('/api/tasks/delete', methods=['POST'])
 def api_delete_task():
     data = request.get_json(force=True)

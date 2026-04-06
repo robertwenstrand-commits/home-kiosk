@@ -226,6 +226,35 @@ def toggle_task(entity_id, item_uid, current_completed):
         return None
 
 
+def update_task(entity_id, item_uid, title, due_date=None, description=None):
+    """Rename an item and optionally update its due date and description."""
+    if not is_configured():
+        return None
+    payload = {'entity_id': entity_id, 'item': item_uid, 'rename': title}
+    if due_date is not None:
+        payload['due_date'] = due_date
+    if description is not None:
+        payload['description'] = description
+    try:
+        r = requests.post(
+            f'{HA_URL}/api/services/todo/update_item',
+            headers=_headers(),
+            json=payload,
+            timeout=_TIMEOUT,
+        )
+        r.raise_for_status()
+        return {
+            'id': item_uid,
+            'list_id': entity_id,
+            'title': title,
+            'due_date': due_date,
+            'description': description,
+        }
+    except Exception as e:
+        logger.warning(f'HA update_task({entity_id}, {item_uid}) failed: {e}')
+        return None
+
+
 def delete_task(entity_id, item_uid):
     """Remove an item from a todo list."""
     if not is_configured():

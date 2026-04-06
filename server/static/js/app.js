@@ -780,7 +780,6 @@ const CalUI = {
       grid.appendChild(d);
     }
   },
-  },
 
   selectDay(dateStr) {
     this._selected = dateStr;

@@ -182,13 +182,18 @@ const App = {
     fromEl.classList.remove('active');
     toEl.classList.add('active');
 
-    // After animation, clear inline styles so CSS class rules take over cleanly.
-    // This prevents the -25% parallax value from leaking into subsequent navigations.
+    // After animation, snap fromEl to its CSS off-screen default (translateX(100%))
+    // without triggering another CSS transition. We must disable the transition first,
+    // force a reflow to commit it, then clear inline styles — otherwise the CSS
+    // transition would animate fromEl from -25% → 100% (the "flies to the right" bug).
     setTimeout(() => {
-      fromEl.style.transition = '';
+      fromEl.style.transition = 'none';
+      toEl.style.transition   = 'none';
       fromEl.style.transform  = '';
-      toEl.style.transition   = '';
       toEl.style.transform    = '';
+      void fromEl.offsetHeight; // commit no-transition before re-enabling CSS transitions
+      fromEl.style.transition = '';
+      toEl.style.transition   = '';
     }, 320);
 
     // Update nav highlight
@@ -228,43 +233,51 @@ const App = {
 /* ── Dashboard UI ───────────────────────────────────────────────────────── */
 const DashUI = {
   async refresh() {
-    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load()]);
+    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load(), HomeStatsUI.load()]);
   },
 
   async loadEvents() {
     const el = document.getElementById('dash-events-body');
     try {
-      const data = await API.get('/api/calendar/today');
-      el.innerHTML = '';
-      if (!data.has_credentials) {
+      const today    = _localDateStr(new Date());
+      const tomorrow = _localDateStr(new Date(Date.now() + 86400000));
+      const [todayData, tomorrowData] = await Promise.all([
+        API.get(`/api/calendar/today?date=${today}`),
+        API.get(`/api/calendar/today?date=${tomorrow}`),
+      ]);
+      if (!todayData.has_credentials) {
         el.innerHTML = '<div class="dash-no-events">Calendar not connected</div>';
         return;
       }
-      if (!data.events.length) {
-        el.innerHTML = '<div class="dash-no-events">No events today</div>';
-        return;
-      }
-      const max = 4;
-      data.events.slice(0, max).forEach(ev => {
-        const d = document.createElement('div');
-        d.className = 'dash-event';
-        d.innerHTML = `
-          <div class="event-dot" style="background:${ev.color || '#4ecdc4'}"></div>
-          <div class="event-info">
-            <div class="event-title">${esc(ev.title)}</div>
-            <div class="event-time">${formatEventTime(ev)}</div>
-          </div>`;
-        el.appendChild(d);
-      });
-      if (data.events.length > max) {
-        const more = document.createElement('div');
-        more.className = 'dash-no-events';
-        more.textContent = `+${data.events.length - max} more`;
-        el.appendChild(more);
-      }
+      el.innerHTML = '<div class="dash-events-cols"><div id="dash-col-today"></div><div id="dash-col-tomorrow"></div></div>';
+      this._renderEventCol('dash-col-today',    todayData.events,    'Today');
+      this._renderEventCol('dash-col-tomorrow', tomorrowData.events, 'Tomorrow');
     } catch {
       el.innerHTML = '<div class="dash-no-events">Offline</div>';
     }
+  },
+
+  _renderEventCol(containerId, events, heading) {
+    const col = document.getElementById(containerId);
+    const head = document.createElement('div');
+    head.className = 'dash-col-head';
+    head.textContent = heading;
+    col.appendChild(head);
+    if (!events.length) {
+      col.insertAdjacentHTML('beforeend', '<div class="dash-no-events">No events</div>');
+      return;
+    }
+    events.forEach(ev => {
+      const d = document.createElement('div');
+      d.className = 'dash-event';
+      d.innerHTML = `
+        <div class="event-dot" style="background:${ev.color || '#4ecdc4'}"></div>
+        <div class="event-info">
+          <div class="event-title">${esc(ev.title)}</div>
+          <div class="event-time">${formatEventTime(ev)}</div>
+        </div>`;
+      col.appendChild(d);
+    });
   },
 
   async loadTasks() {
@@ -300,7 +313,7 @@ const DashUI = {
         tasks.slice(0, MAX).forEach(t => {
           const d = document.createElement('div');
           d.className = 'dash-task-item';
-          d.innerHTML = `<span class="dash-task-bullet">•</span><span class="dash-task-title">${esc(t.title)}</span>`;
+          d.innerHTML = `<span class="dash-task-circle"></span><span class="dash-task-title">${esc(t.title)}</span>`;
           el.appendChild(d);
         });
 
@@ -322,7 +335,69 @@ const DashUI = {
   },
 };
 
+/* ── Home Stats UI (Powerwall + Catbox) ─────────────────────────────────── */
+const _CATBOX_STATUS = {
+  rdy: 'Ready',        cln: 'Cleaning',        ccc: 'Cycle Complete',
+  csf: 'Sensor Fault', cstp: 'Cat Detected',   cs:  'Cat Detected',
+  br:  'Drawer Full',  dfs:  'Drawer Full',     lf:  'Litter Full',
+  off: 'Off',          pd:   'Pinch Detect',    paused: 'Paused',
+  scf: 'Sensor Fault', dhf:  'Dustpan Full',    hpf: 'Hopper Empty',
+};
+
+const HomeStatsUI = {
+  async load() {
+    try {
+      const data = await API.get('/api/home-stats');
+      this._renderPowerwall(data.powerwall);
+      this._renderCatbox(data.catbox);
+    } catch {
+      ['dash-powerwall-body', 'dash-catbox-body'].forEach(id => {
+        document.getElementById(id).innerHTML = '<div class="dash-no-events">Offline</div>';
+      });
+    }
+  },
+
+  _renderPowerwall(pw) {
+    const el   = document.getElementById('dash-powerwall-body');
+    const pct  = Math.min(100, Math.max(0, pw.pct));
+    const col  = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
+    const w    = Math.abs(pw.power_w);
+    const flow = pw.power_w >  50 ? `Discharging ${(w / 1000).toFixed(1)} kW`
+               : pw.power_w < -50 ? `Charging ${(w / 1000).toFixed(1)} kW`
+               : 'Standby';
+    el.innerHTML = `
+      <div class="stat-pct-row">
+        <span class="stat-pct-big" style="color:${col}">${pct}%</span>
+        <span class="stat-kwh-label">${pw.kwh} kWh stored</span>
+      </div>
+      <div class="stat-bar-track"><div class="stat-bar" style="width:${pct}%;background:${col}"></div></div>
+      <div class="stat-footer">${flow}</div>`;
+  },
+
+  _renderCatbox(cat) {
+    const el          = document.getElementById('dash-catbox-body');
+    const statusLabel = _CATBOX_STATUS[cat.status] || cat.status;
+    const litterCol   = cat.litter_pct < 20 ? 'var(--danger)' : cat.litter_pct < 40 ? 'var(--warn)' : 'var(--success)';
+    const drawerCol   = cat.waste_pct >= 90 ? 'var(--danger)' : cat.waste_pct >= 70 ? 'var(--warn)' : 'var(--success)';
+    const drawerWarn  = cat.waste_pct >= 90 ? ' ⚠' : '';
+    el.innerHTML = `
+      <div class="stat-row">
+        <span class="stat-row-label">Litter</span>
+        <div class="stat-bar-track" style="flex:1"><div class="stat-bar" style="width:${cat.litter_pct}%;background:${litterCol}"></div></div>
+        <span class="stat-row-val">${cat.litter_pct}%</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-row-label">Drawer</span>
+        <div class="stat-bar-track" style="flex:1"><div class="stat-bar" style="width:${cat.waste_pct}%;background:${drawerCol}"></div></div>
+        <span class="stat-row-val${cat.waste_pct >= 90 ? ' stat-warn' : ''}">${cat.waste_pct}%${drawerWarn}</span>
+      </div>
+      <div class="stat-footer">${statusLabel}</div>`;
+  },
+};
+
 /* ── Tasks UI ───────────────────────────────────────────────────────────── */
+const TASK_CHECK_SVG = `<svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6 5,9.5 10.5,2.5"/></svg>`;
+
 const TasksUI = {
   _currentListId: null,
   _showCompleted: false,
@@ -350,7 +425,7 @@ const TasksUI = {
         );
 
         const previewItems = tasks.slice(0, 4).map(t =>
-          `<div class="list-card-task">${esc(t.title)}</div>`
+          `<div class="list-card-task"><div class="list-card-task-check"></div><span class="list-card-task-title">${esc(t.title)}</span></div>`
         ).join('');
         const preview = previewItems ||
           `<div class="list-card-task list-card-empty">${lst.pending ? '' : 'All done!'}</div>`;
@@ -409,46 +484,77 @@ const TasksUI = {
     const el = document.getElementById('task-items-container');
     el.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
     try {
-      const encodedId = encodeURIComponent(this._currentListId);
-      const tasks = await API.get(`/api/lists/${encodedId}/tasks?completed=${this._showCompleted}`);
+      const id  = this._currentListId;
+      const enc = encodeURIComponent(id);
+      // Fetch pending tasks; also fetch completed if we need today's completions
+      const needToday    = !this._showCompleted && CompletionStore.hasAnyToday(id);
+      const [tasks, all] = await Promise.all([
+        API.get(`/api/lists/${enc}/tasks?completed=${this._showCompleted}`),
+        needToday ? API.get(`/api/lists/${enc}/tasks?completed=true`).catch(() => []) : Promise.resolve([]),
+      ]);
+
+      const combined = this._mergeTodayCompleted(tasks, all, id);
       el.innerHTML = '';
-      if (!tasks.length) {
-        el.innerHTML = `<div class="dash-no-events" style="padding:20px 0">${this._showCompleted ? 'No tasks' : 'No pending tasks. Tap + to add one.'}</div>`;
+      if (!combined.length) {
+        el.innerHTML = `<div class="dash-no-events" style="padding:20px 0">${
+          this._showCompleted ? 'No tasks' : 'No pending tasks. Tap + to add one.'
+        }</div>`;
         return;
       }
-      tasks.forEach(t => el.appendChild(this._makeTaskEl(t)));
+      combined.forEach(t => {
+        const taskEl = this._makeTaskEl(t);
+        if (!this._showCompleted && t.completed && CompletionStore.isCompletedToday(id, t.id)) {
+          taskEl.classList.add('completed-today');
+        }
+        el.appendChild(taskEl);
+      });
     } catch {
       el.innerHTML = '<div class="dash-no-events">Failed to load tasks</div>';
     }
+  },
+
+  _mergeTodayCompleted(pending, all, entityId) {
+    if (!all.length) return pending;
+    const seen = new Set(pending.map(t => t.id));
+    const todayDone = all.filter(t =>
+      t.completed && !seen.has(t.id) && CompletionStore.isCompletedToday(entityId, t.id)
+    );
+    return [...pending, ...todayDone];
   },
 
   _makeTaskEl(task) {
     const el = document.createElement('div');
     el.className = 'task-item' + (task.completed ? ' completed' : '');
 
-    let dueHtml = '';
-    if (task.due_date) {
-      const due = new Date(task.due_date + 'T00:00:00');
-      const today = new Date(); today.setHours(0,0,0,0);
-      const overdue = !task.completed && due < today;
-      dueHtml = `<div class="task-due${overdue ? ' overdue' : ''}">${formatDate(due)}</div>`;
-    }
+    const dueHtml = this._dueDateHtml(task);
 
     el.innerHTML = `
-      <div class="task-check">${task.completed ? '✓' : '•'}</div>
+      <div class="task-check">${TASK_CHECK_SVG}</div>
       <div class="task-title">${esc(task.title)}</div>
       ${dueHtml}
-      <button class="task-delete">✕</button>`;
+      <button class="task-delete" aria-label="Delete">&#10005;</button>`;
 
+    // Circle toggles completion; title taps open edit; delete removes
     el.querySelector('.task-check').addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleTask(task, el);
     });
+    el.querySelector('.task-title').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.promptEditTask(task, el);
+    });
     el.querySelector('.task-delete').addEventListener('click', (e) => {
       this.deleteTask(e, task, el);
     });
-    el.addEventListener('click', () => this.toggleTask(task, el));
     return el;
+  },
+
+  _dueDateHtml(task) {
+    if (!task.due_date) return '';
+    const due   = new Date(task.due_date + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const overdue = !task.completed && due < today;
+    return `<div class="task-due${overdue ? ' overdue' : ''}">${formatDate(due)}</div>`;
   },
 
   async toggleTask(task, el) {
@@ -461,7 +567,7 @@ const TasksUI = {
       const nowDone = result.completed;
       task.completed = nowDone;
       el.className = 'task-item' + (nowDone ? ' completed' : '');
-      el.querySelector('.task-check').textContent = nowDone ? '✓' : '';
+      CompletionStore.set(task.list_id, task.id, nowDone);
     } catch {
       Toast.show('Failed to update task');
     }
@@ -487,6 +593,74 @@ const TasksUI = {
   toggleShowCompleted() {
     this._showCompleted = document.getElementById('show-completed-cb').checked;
     this.loadTasks();
+  },
+
+  _buildEditTaskForm(task) {
+    const body = document.createElement('div');
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'modal-input';
+    titleInput.value = task.title;
+    titleInput.setAttribute('autocomplete', 'off');
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'modal-input';
+    dateInput.style.cssText = 'margin-top:10px;height:44px;font-size:15px;';
+    dateInput.value = task.due_date || '';
+
+    const notesInput = document.createElement('textarea');
+    notesInput.className = 'modal-textarea';
+    notesInput.placeholder = 'Notes\u2026';
+    notesInput.value = task.description || '';
+
+    body.appendChild(titleInput);
+    body.appendChild(dateInput);
+    body.appendChild(notesInput);
+    return { body, titleInput, dateInput, notesInput };
+  },
+
+  promptEditTask(task, el) {
+    const { body, titleInput, dateInput, notesInput } = this._buildEditTaskForm(task);
+
+    const doSave = async () => {
+      const title = titleInput.value.trim();
+      if (!title) return;
+      Modal.close();
+      try {
+        await API.post('/api/tasks/update', {
+          entity_id:   task.list_id,
+          item_uid:    task.id,
+          title,
+          due_date:    dateInput.value || null,
+          description: notesInput.value.trim() || null,
+        });
+        task.title       = title;
+        task.due_date    = dateInput.value || null;
+        task.description = notesInput.value.trim() || null;
+        el.querySelector('.task-title').textContent = title;
+        // Refresh due date display
+        const existing = el.querySelector('.task-due');
+        const newDue   = this._dueDateHtml(task);
+        if (existing) existing.outerHTML = newDue;
+        else if (newDue) el.querySelector('.task-delete').insertAdjacentHTML('beforebegin', newDue);
+        Toast.show('Task updated');
+      } catch {
+        Toast.show('Failed to update task');
+      }
+    };
+
+    titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); });
+    Modal.open({
+      title: 'Edit Task',
+      body,
+      actions: [
+        { label: 'Cancel', class: 'btn-secondary' },
+        { label: 'Save',   class: 'btn-primary', action: doSave },
+      ],
+    });
+    setTimeout(() => titleInput.focus(), 100);
   },
 
   promptAddList() {
@@ -578,10 +752,15 @@ const CalUI = {
   init() {
     if (!this._initialized) {
       const now = new Date();
-      this._year = now.getFullYear();
+      this._year  = now.getFullYear();
       this._month = now.getMonth();
       this._selected = now.toISOString().slice(0, 10);
       this._initialized = true;
+      // Wire day-view close controls once
+      document.getElementById('cal-day-view-close')
+        .addEventListener('click', () => this._closeDayView());
+      document.getElementById('cal-day-view-overlay')
+        .addEventListener('click', () => this._closeDayView());
     }
     this._render();
   },
@@ -665,57 +844,55 @@ const CalUI = {
       d.className = 'cal-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '');
       d.onclick = () => this.selectDay(dateStr);
 
-      let dotsHtml = '';
-      if (evs.length) {
-        const colors = [...new Set(evs.slice(0, 3).map(e => e.color || '#4ecdc4'))];
-        dotsHtml = `<div class="event-dots">${colors.map(c => `<span style="background:${c}"></span>`).join('')}</div>`;
-      }
-
-      d.innerHTML = `<span class="cal-day-num">${day}</span>${dotsHtml}`;
+      d.innerHTML = `<span class="cal-day-num">${day}</span>${_buildDayBulletsHtml(evs)}`;
       grid.appendChild(d);
     }
-
-    // Show events for selected day
-    if (this._selected) this._showDayEvents(this._selected);
   },
 
   selectDay(dateStr) {
     this._selected = dateStr;
     document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
-    // Re-find the clicked day element
     const grid = document.getElementById('cal-grid');
     const [, , d] = dateStr.split('-').map(Number);
     const dayEls = grid.querySelectorAll('.cal-day:not(.other-month)');
     if (dayEls[d - 1]) dayEls[d - 1].classList.add('selected');
-    this._showDayEvents(dateStr);
+    this._openDayView(dateStr);
   },
 
-  _showDayEvents(dateStr) {
+  _openDayView(dateStr) {
     const evs = this._events[dateStr] || [];
-    const dateLabel = document.getElementById('cal-events-date');
-    const list = document.getElementById('cal-events-list');
+    document.getElementById('cal-day-view-date').textContent =
+      new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric',
+      });
 
-    dateLabel.textContent = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric'
-    });
-
+    const list = document.getElementById('cal-day-view-list');
     list.innerHTML = '';
     if (!evs.length) {
-      list.innerHTML = '<div class="cal-no-events">No events</div>';
-      return;
+      list.innerHTML = '<div class="cal-no-events">No events this day</div>';
+    } else {
+      evs.forEach(ev => {
+        const el = document.createElement('div');
+        el.className = 'cal-event-item';
+        el.style.borderLeftColor = ev.color || '#4ecdc4';
+        el.innerHTML = `
+          <div class="cal-event-time">${formatEventTime(ev)}</div>
+          <div>
+            <div class="cal-event-title">${esc(ev.title)}</div>
+            ${ev.location    ? `<div class="cal-event-loc">📍 ${esc(ev.location)}</div>`    : ''}
+            ${ev.description ? `<div class="cal-event-loc">${esc(ev.description)}</div>` : ''}
+          </div>`;
+        list.appendChild(el);
+      });
     }
-    evs.forEach(ev => {
-      const el = document.createElement('div');
-      el.className = 'cal-event-item';
-      el.style.borderLeftColor = ev.color || '#4ecdc4';
-      el.innerHTML = `
-        <div class="cal-event-time">${formatEventTime(ev)}</div>
-        <div>
-          <div class="cal-event-title">${esc(ev.title)}</div>
-          ${ev.location ? `<div class="cal-event-loc">📍 ${esc(ev.location)}</div>` : ''}
-        </div>`;
-      list.appendChild(el);
-    });
+
+    document.getElementById('cal-day-view').classList.add('open');
+    document.getElementById('cal-day-view-overlay').classList.add('visible');
+  },
+
+  _closeDayView() {
+    document.getElementById('cal-day-view').classList.remove('open');
+    document.getElementById('cal-day-view-overlay').classList.remove('visible');
   },
 };
 
@@ -1247,7 +1424,43 @@ const PoolUI = {
   },
 };
 
+/* ── Completion Store ────────────────────────────────────────────────────── */
+/**
+ * localStorage-backed record of when tasks were marked complete.
+ * Allows "show today's completions" without requiring HA to store dates.
+ * Key: "cs:{entityId}:{uid}"  Value: ISO date "YYYY-MM-DD"
+ */
+const CompletionStore = {
+  _k(entityId, uid)       { return `cs:${entityId}:${uid}`; },
+  _today()                { return new Date().toISOString().slice(0, 10); },
+
+  set(entityId, uid, completed) {
+    const k = this._k(entityId, uid);
+    if (completed) localStorage.setItem(k, this._today());
+    else           localStorage.removeItem(k);
+  },
+
+  isCompletedToday(entityId, uid) {
+    return localStorage.getItem(this._k(entityId, uid)) === this._today();
+  },
+
+  hasAnyToday(entityId) {
+    const prefix = `cs:${entityId}:`;
+    const today  = this._today();
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix) && localStorage.getItem(k) === today) return true;
+    }
+    return false;
+  },
+};
+
 /* ── Shared Helpers ─────────────────────────────────────────────────────── */
+
+/** Format a Date as YYYY-MM-DD in the device's local timezone. */
+function _localDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 /** Fetch pending tasks for all lists in parallel; failed lists return []. */
 async function _fetchPendingTasks(lists) {
@@ -1259,12 +1472,30 @@ async function _fetchPendingTasks(lists) {
   );
 }
 
+/**
+ * Build HTML for event bullet rows inside a calendar day cell.
+ * Shows up to MAX titled bullets; appends "+N" if more exist.
+ */
+function _buildDayBulletsHtml(evs) {
+  if (!evs.length) return '';
+  const MAX  = 3;
+  const more = evs.length - MAX;
+  const rows = evs.slice(0, MAX).map(ev =>
+    `<div class="cal-day-bullet">` +
+    `<span class="cal-day-bullet-dot" style="color:${ev.color || 'var(--accent)'}">•</span>` +
+    `${esc(ev.title)}</div>`
+  );
+  if (more > 0) rows.push(`<div class="cal-day-bullet-more">+${more} more</div>`);
+  return `<div class="cal-day-bullets">${rows.join('')}</div>`;
+}
+
 /* ── Long Press Utility ─────────────────────────────────────────────────── */
 function addLongPress(el, onTap, onLongPress, delay = 600) {
   let timer = null;
   let triggered = false;
 
-  const start = () => {
+  const start = (e) => {
+    e.preventDefault(); // suppress browser context menu / callout on long press
     triggered = false;
     timer = setTimeout(() => {
       triggered = true;
@@ -1279,7 +1510,7 @@ function addLongPress(el, onTap, onLongPress, delay = 600) {
     if (!triggered) onTap();
   };
 
-  el.addEventListener('touchstart', start, { passive: true });
+  el.addEventListener('touchstart', start, { passive: false }); // must be non-passive for preventDefault
   el.addEventListener('touchend', end);
   el.addEventListener('touchcancel', cancel);
   // Mouse fallback for non-touch (desktop testing)
@@ -1336,6 +1567,16 @@ function formatDateTime(d) {
     hour: 'numeric', minute: '2-digit', hour12: true
   });
 }
+
+/* ── Mobile viewport height fix ─────────────────────────────────────────── */
+// window.innerHeight is the actual visible height on mobile (excludes browser
+// chrome). We write it as --vh so CSS can use calc(var(--vh) * 100) if needed,
+// but mainly we rely on position:fixed which references the visual viewport.
+function _setVh() {
+  document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+}
+window.addEventListener('resize', _setVh);
+_setVh();
 
 /* ── Init ───────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {

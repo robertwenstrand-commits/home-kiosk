@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=4">
+  <link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
 <body>
 
@@ -41,54 +41,81 @@
     <!-- Dashboard -->
     <section class="screen active" id="screen-dashboard">
       <div class="screen-content">
-        <div class="dash-grid">
+        <div class="dash-layout">
 
-          <!-- Today's Events -->
-          <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
-            <div class="card-header">
-              <span class="card-icon">&#128197;</span>
-              <span class="card-title">Today</span>
-              <span class="card-arrow">&#8250;</span>
+          <!-- Left column: Schedule + Lights -->
+          <div class="dash-col-left">
+
+            <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
+              <div class="card-header">
+                <span class="card-icon">&#128197;</span>
+                <span class="card-title">Schedule</span>
+                <span class="card-arrow">&#8250;</span>
+              </div>
+              <div class="card-body" id="dash-events-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
             </div>
-            <div class="card-body" id="dash-events-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
+
+            <div class="dash-lights-pane">
+              <div class="dash-lights-header">
+                <span class="card-icon">&#128161;</span>
+                <span class="card-title">Lights &amp; Switches</span>
+              </div>
+              <div id="dash-lights-grid" class="dash-lights-grid">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
             </div>
+
+          </div><!-- .dash-col-left -->
+
+          <!-- Right column: Tasks + Litter Box + Powerwall -->
+          <div class="dash-col-right">
+
+            <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
+              <div class="card-header">
+                <span class="card-icon">&#10003;</span>
+                <span class="card-title">Tasks</span>
+                <span class="card-arrow">&#8250;</span>
+              </div>
+              <div class="card-body" id="dash-tasks-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+            <div class="dash-card" id="dash-catbox">
+              <div class="card-header">
+                <span class="card-icon">&#128049;</span>
+                <span class="card-title">Litter Box</span>
+              </div>
+              <div class="card-body" id="dash-catbox-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+            <div class="dash-card" id="dash-powerwall">
+              <div class="card-header">
+                <span class="card-icon">&#9889;</span>
+                <span class="card-title">Powerwall</span>
+              </div>
+              <div class="card-body" id="dash-powerwall-body">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+
+          </div><!-- .dash-col-right -->
+
+        </div><!-- .dash-layout -->
+
+        <!-- Camera Preview (hidden until JS confirms camera is configured) -->
+        <div class="dash-card hidden" id="dash-camera" onclick="App.navigate('camera')" style="margin-top:14px">
+          <div class="card-header">
+            <span class="card-icon">&#128247;</span>
+            <span class="card-title">Camera</span>
+            <span class="card-arrow">&#8250;</span>
           </div>
-
-          <!-- Task Summary -->
-          <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
-            <div class="card-header">
-              <span class="card-icon">&#10003;</span>
-              <span class="card-title">Tasks</span>
-              <span class="card-arrow">&#8250;</span>
-            </div>
-            <div class="card-body" id="dash-tasks-body">
-              <div class="loading-dots"><span></span><span></span><span></span></div>
-            </div>
-          </div>
-
-          <!-- Camera Preview (hidden until JS confirms camera is configured) -->
-          <div class="dash-card dash-card-wide hidden" id="dash-camera" onclick="App.navigate('camera')">
-            <div class="card-header">
-              <span class="card-icon">&#128247;</span>
-              <span class="card-title">Camera</span>
-              <span class="card-arrow">&#8250;</span>
-            </div>
-            <div class="card-body camera-preview-wrap">
-              <img id="dash-camera-img" src="" alt="Camera">
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Lights & Switches pane -->
-        <div class="dash-lights-pane">
-          <div class="dash-lights-header">
-            <span class="card-icon">&#128161;</span>
-            <span class="card-title">Lights &amp; Switches</span>
-          </div>
-          <div id="dash-lights-grid" class="dash-lights-grid">
-            <div class="loading-dots"><span></span><span></span><span></span></div>
+          <div class="card-body camera-preview-wrap">
+            <img id="dash-camera-img" src="" alt="Camera">
           </div>
         </div>
 
@@ -138,10 +165,6 @@
           <span>Thu</span><span>Fri</span><span>Sat</span>
         </div>
         <div id="cal-grid" class="cal-grid"></div>
-        <div id="cal-events-panel" class="cal-events-panel">
-          <div id="cal-events-date"></div>
-          <div id="cal-events-list"></div>
-        </div>
         <div id="cal-no-creds" class="notice hidden">
           Google Calendar not connected. Run <code>python google_auth.py</code> on setup machine.
         </div>
@@ -291,31 +314,6 @@
 
   </main>
 
-  <!-- ── Bottom Nav ──────────────────────────────────────────────────────── -->
-  <nav id="bottomnav">
-    <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
-      <span class="nav-icon">&#8962;</span>
-      <span class="nav-label">Home</span>
-    </button>
-    <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
-      <span class="nav-icon">&#10003;</span>
-      <span class="nav-label">Tasks</span>
-    </button>
-    <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
-      <span class="nav-icon">&#128197;</span>
-      <span class="nav-label">Calendar</span>
-    </button>
-    <!-- Camera nav button hidden until JS confirms camera is configured -->
-    <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
-      <span class="nav-icon">&#128247;</span>
-      <span class="nav-label">Camera</span>
-    </button>
-    <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
-      <span class="nav-icon">&#127946;</span>
-      <span class="nav-label">Pool</span>
-    </button>
-  </nav>
-
   <!-- ── Modal ──────────────────────────────────────────────────────────── -->
   <div id="modal-overlay" class="hidden" onclick="Modal.closeOnBackdrop(event)">
     <div id="modal-box">
@@ -330,6 +328,42 @@
 
 </div><!-- #app -->
 
-<script src="/static/js/app.js?v=4"></script>
+<!-- Calendar Day View — outside #app so no stacking-context interference -->
+<div id="cal-day-view-overlay"></div>
+<div id="cal-day-view">
+  <div id="cal-day-view-header">
+    <div id="cal-day-view-date"></div>
+    <button id="cal-day-view-close" aria-label="Close day view">&#10005;</button>
+  </div>
+  <div id="cal-day-view-list"></div>
+</div>
+
+<!-- Bottom nav is a direct child of body — keeps it outside any ancestor
+     stacking context or transform that could interfere with position:fixed -->
+<nav id="bottomnav">
+  <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
+    <span class="nav-icon">&#8962;</span>
+    <span class="nav-label">Home</span>
+  </button>
+  <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
+    <span class="nav-icon">&#10003;</span>
+    <span class="nav-label">Tasks</span>
+  </button>
+  <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
+    <span class="nav-icon">&#128197;</span>
+    <span class="nav-label">Calendar</span>
+  </button>
+  <!-- Camera nav button hidden until JS confirms camera is configured -->
+  <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
+    <span class="nav-icon">&#128247;</span>
+    <span class="nav-label">Camera</span>
+  </button>
+  <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
+    <span class="nav-icon">&#127946;</span>
+    <span class="nav-label">Pool</span>
+  </button>
+</nav>
+
+<script src="/static/js/app.js?v=7"></script>
 </body>
 </html>

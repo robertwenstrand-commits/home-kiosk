@@ -412,6 +412,61 @@ html, body {
   animation: fadeSlideUp 0.3s both;
 }
 
+/* ── Stat cards (Powerwall, Catbox) ────────────────────────────────────── */
+.stat-pct-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.stat-pct-big {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+}
+.stat-kwh-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.stat-bar-track {
+  height: 7px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.stat-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.stat-footer {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.stat-row-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 40px;
+  flex-shrink: 0;
+}
+.stat-row-val {
+  font-size: 11px;
+  font-weight: 700;
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.stat-warn { color: var(--danger); }
+
 /* ── Lights pane (dashboard) ────────────────────────────────────────────── */
 .dash-lights-pane {
   background: var(--surface);

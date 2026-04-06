@@ -233,7 +233,7 @@ const App = {
 /* ── Dashboard UI ───────────────────────────────────────────────────────── */
 const DashUI = {
   async refresh() {
-    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load()]);
+    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load(), HomeStatsUI.load()]);
   },
 
   async loadEvents() {
@@ -249,8 +249,7 @@ const DashUI = {
         el.innerHTML = '<div class="dash-no-events">No events today</div>';
         return;
       }
-      const max = 4;
-      data.events.slice(0, max).forEach(ev => {
+      data.events.forEach(ev => {
         const d = document.createElement('div');
         d.className = 'dash-event';
         d.innerHTML = `
@@ -261,12 +260,6 @@ const DashUI = {
           </div>`;
         el.appendChild(d);
       });
-      if (data.events.length > max) {
-        const more = document.createElement('div');
-        more.className = 'dash-no-events';
-        more.textContent = `+${data.events.length - max} more`;
-        el.appendChild(more);
-      }
     } catch {
       el.innerHTML = '<div class="dash-no-events">Offline</div>';
     }
@@ -324,6 +317,66 @@ const DashUI = {
     } catch {
       el.innerHTML = '<div class="dash-no-events">Offline</div>';
     }
+  },
+};
+
+/* ── Home Stats UI (Powerwall + Catbox) ─────────────────────────────────── */
+const _CATBOX_STATUS = {
+  rdy: 'Ready',        cln: 'Cleaning',        ccc: 'Cycle Complete',
+  csf: 'Sensor Fault', cstp: 'Cat Detected',   cs:  'Cat Detected',
+  br:  'Drawer Full',  dfs:  'Drawer Full',     lf:  'Litter Full',
+  off: 'Off',          pd:   'Pinch Detect',    paused: 'Paused',
+  scf: 'Sensor Fault', dhf:  'Dustpan Full',    hpf: 'Hopper Empty',
+};
+
+const HomeStatsUI = {
+  async load() {
+    try {
+      const data = await API.get('/api/home-stats');
+      this._renderPowerwall(data.powerwall);
+      this._renderCatbox(data.catbox);
+    } catch {
+      ['dash-powerwall-body', 'dash-catbox-body'].forEach(id => {
+        document.getElementById(id).innerHTML = '<div class="dash-no-events">Offline</div>';
+      });
+    }
+  },
+
+  _renderPowerwall(pw) {
+    const el   = document.getElementById('dash-powerwall-body');
+    const pct  = Math.min(100, Math.max(0, pw.pct));
+    const col  = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
+    const w    = Math.abs(pw.power_w);
+    const flow = pw.power_w >  50 ? `Discharging ${(w / 1000).toFixed(1)} kW`
+               : pw.power_w < -50 ? `Charging ${(w / 1000).toFixed(1)} kW`
+               : 'Standby';
+    el.innerHTML = `
+      <div class="stat-pct-row">
+        <span class="stat-pct-big" style="color:${col}">${pct}%</span>
+        <span class="stat-kwh-label">${pw.kwh} kWh stored</span>
+      </div>
+      <div class="stat-bar-track"><div class="stat-bar" style="width:${pct}%;background:${col}"></div></div>
+      <div class="stat-footer">${flow}</div>`;
+  },
+
+  _renderCatbox(cat) {
+    const el          = document.getElementById('dash-catbox-body');
+    const statusLabel = _CATBOX_STATUS[cat.status] || cat.status;
+    const litterCol   = cat.litter_pct < 20 ? 'var(--danger)' : cat.litter_pct < 40 ? 'var(--warn)' : 'var(--success)';
+    const drawerCol   = cat.waste_pct >= 90 ? 'var(--danger)' : cat.waste_pct >= 70 ? 'var(--warn)' : 'var(--success)';
+    const drawerWarn  = cat.waste_pct >= 90 ? ' ⚠' : '';
+    el.innerHTML = `
+      <div class="stat-row">
+        <span class="stat-row-label">Litter</span>
+        <div class="stat-bar-track" style="flex:1"><div class="stat-bar" style="width:${cat.litter_pct}%;background:${litterCol}"></div></div>
+        <span class="stat-row-val">${cat.litter_pct}%</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-row-label">Drawer</span>
+        <div class="stat-bar-track" style="flex:1"><div class="stat-bar" style="width:${cat.waste_pct}%;background:${drawerCol}"></div></div>
+        <span class="stat-row-val${cat.waste_pct >= 90 ? ' stat-warn' : ''}">${cat.waste_pct}%${drawerWarn}</span>
+      </div>
+      <div class="stat-footer">${statusLabel}</div>`;
   },
 };
 

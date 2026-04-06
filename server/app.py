@@ -63,7 +63,9 @@ def api_create_list():
 @app.route('/api/lists/<path:list_id>', methods=['DELETE'])
 def api_delete_list(list_id):
     ok = ha_tasks.delete_list(list_id)
-    return jsonify({'ok': ok})
+    if not ok:
+        return jsonify({'error': 'failed to delete list'}), 502
+    return jsonify({'ok': True})
 
 
 # ── Tasks API ─────────────────────────────────────────────────────────────────
@@ -169,6 +171,39 @@ def api_camera_stream():
     )
 
 
+# ── Home Assistant helpers ─────────────────────────────────────────────────────
+
+def _ha_call(method, path, data=None):
+    if not config.HA_URL or not config.HA_TOKEN:
+        return None
+    url = config.HA_URL + path
+    body = _json.dumps(data).encode() if data is not None else None
+    req = _urllib_req.Request(url, data=body, method=method)
+    req.add_header('Authorization', f'Bearer {config.HA_TOKEN}')
+    req.add_header('Content-Type', 'application/json')
+    try:
+        with _urllib_req.urlopen(req, timeout=5) as resp:
+            return _json.loads(resp.read())
+    except Exception as e:
+        logger.error(f'HA call failed: {e}')
+        return None
+
+
+def _ha_state(entity_id):
+    """Return entity state string or 'unknown' on any failure."""
+    result = _ha_call('GET', f'/api/states/{entity_id}')
+    return result.get('state', 'unknown') if result else 'unknown'
+
+
+def _ha_states_map(entity_ids):
+    """Fetch all HA states in one call and return a dict keyed by entity_id."""
+    all_states = _ha_call('GET', '/api/states')
+    if not all_states:
+        return {}
+    wanted = set(entity_ids)
+    return {s['entity_id']: s for s in all_states if s['entity_id'] in wanted}
+
+
 # ── Garage Lock API ────────────────────────────────────────────────────────────
 
 GARAGE_LOCK_ENTITY = 'lock.garage_door'
@@ -176,9 +211,7 @@ GARAGE_LOCK_ENTITY = 'lock.garage_door'
 
 @app.route('/api/garage/status')
 def api_garage_status():
-    result = _ha_call('GET', f'/api/states/{GARAGE_LOCK_ENTITY}')
-    state = result.get('state', 'unknown') if result else 'unknown'
-    return jsonify({'state': state})
+    return jsonify({'state': _ha_state(GARAGE_LOCK_ENTITY)})
 
 
 @app.route('/api/garage/lock', methods=['POST'])
@@ -202,22 +235,6 @@ _gate_hold_lock = threading.Lock()
 _gate_hold_thread = None
 
 
-def _ha_call(method, path, data=None):
-    if not config.HA_URL or not config.HA_TOKEN:
-        return None
-    url = config.HA_URL + path
-    body = _json.dumps(data).encode() if data is not None else None
-    req = _urllib_req.Request(url, data=body, method=method)
-    req.add_header('Authorization', f'Bearer {config.HA_TOKEN}')
-    req.add_header('Content-Type', 'application/json')
-    try:
-        with _urllib_req.urlopen(req, timeout=5) as resp:
-            return _json.loads(resp.read())
-    except Exception as e:
-        logger.error(f'HA gate call failed: {e}')
-        return None
-
-
 def _gate_hold_worker():
     """Background thread: opens gate every GATE_HOLD_INTERVAL seconds."""
     global _gate_hold_thread
@@ -238,11 +255,11 @@ def _gate_hold_worker():
 
 @app.route('/api/gate/status')
 def api_gate_status():
-    result = _ha_call('GET', f'/api/states/{GATE_ENTITY}')
-    state = result.get('state', 'unknown') if result else 'unknown'
+    state = _ha_state(GATE_ENTITY)
+    now = _time.time()
     with _gate_hold_lock:
-        active = _gate_hold['active'] and _time.time() < _gate_hold['end_time']
-        remaining = int(max(0, _gate_hold['end_time'] - _time.time())) if active else 0
+        active = _gate_hold['active'] and now < _gate_hold['end_time']
+        remaining = int(max(0, _gate_hold['end_time'] - now)) if active else 0
     return jsonify({'state': state, 'hold_active': active, 'hold_remaining': remaining})
 
 
@@ -295,17 +312,17 @@ _DASHBOARD_LIGHT_IDS = {item['entity_id'] for item in DASHBOARD_LIGHTS}
 
 @app.route('/api/lights')
 def api_lights():
-    result = []
-    for item in DASHBOARD_LIGHTS:
-        state = _ha_call('GET', f'/api/states/{item["entity_id"]}')
-        result.append({
+    states = _ha_states_map(_DASHBOARD_LIGHT_IDS)
+    return jsonify([
+        {
             'entity_id': item['entity_id'],
             'name': item['name'],
             'icon': item['icon'],
             'domain': item['entity_id'].split('.')[0],
-            'state': state.get('state') if state else 'unknown',
-        })
-    return jsonify(result)
+            'state': (states.get(item['entity_id']) or {}).get('state', 'unknown'),
+        }
+        for item in DASHBOARD_LIGHTS
+    ])
 
 
 @app.route('/api/lights/toggle', methods=['POST'])
@@ -350,14 +367,14 @@ _POOL_ALLOWED_CLIMATES = {v for k, v in POOL_ENTITIES.items() if v.startswith('c
 
 @app.route('/api/pool/status')
 def api_pool_status():
-    result = {}
-    for key, entity_id in POOL_ENTITIES.items():
-        state = _ha_call('GET', f'/api/states/{entity_id}')
-        result[key] = {
-            'state': state.get('state') if state else 'unknown',
-            'attributes': state.get('attributes', {}) if state else {},
+    states = _ha_states_map(POOL_ENTITIES.values())
+    return jsonify({
+        key: {
+            'state': (states.get(entity_id) or {}).get('state', 'unknown'),
+            'attributes': (states.get(entity_id) or {}).get('attributes', {}),
         }
-    return jsonify(result)
+        for key, entity_id in POOL_ENTITIES.items()
+    })
 
 
 @app.route('/api/pool/switch', methods=['POST'])
@@ -412,10 +429,8 @@ def api_pool_light():
 
 @app.route('/api/status')
 def api_status():
-    air = _ha_call('GET', f'/api/states/{POOL_ENTITIES["air_temp"]}')
-    air_temp = air.get('state') if air else None
-    if air_temp in (None, 'unknown', 'unavailable'):
-        air_temp = None
+    raw = _ha_state(POOL_ENTITIES['air_temp'])
+    air_temp = raw if raw not in ('unknown', 'unavailable') else None
     return jsonify({
         'title': config.APP_TITLE,
         'camera_enabled': camera_svc.is_configured(),

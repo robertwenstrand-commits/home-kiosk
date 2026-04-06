@@ -277,12 +277,7 @@ const DashUI = {
         return;
       }
 
-      const taskResults = await Promise.all(
-        lists.map(lst =>
-          API.get(`/api/lists/${encodeURIComponent(lst.id)}/tasks?completed=false`)
-               .catch(() => [])
-        )
-      );
+      const taskResults = await _fetchPendingTasks(lists);
 
       const MAX = 4;
       let anyTasks = false;
@@ -343,13 +338,7 @@ const TasksUI = {
         return;
       }
 
-      // Fetch pending tasks for all lists in parallel
-      const taskResults = await Promise.all(
-        lists.map(lst =>
-          API.get(`/api/lists/${encodeURIComponent(lst.id)}/tasks?completed=false`)
-               .catch(() => [])
-        )
-      );
+      const taskResults = await _fetchPendingTasks(lists);
 
       lists.forEach((lst, i) => {
         const tasks = taskResults[i] || [];
@@ -1029,7 +1018,7 @@ const GateUI = {
 
   async cancelHold() {
     try {
-      await fetch('/api/gate/hold', { method: 'DELETE' });
+      await API.del('/api/gate/hold');
     } catch { /* silent */ }
     this._applyHoldState(false, 0);
     Toast.show('Hold-open cancelled');
@@ -1063,24 +1052,20 @@ const LightsUI = {
         <span class="light-tile-name">${esc(item.name)}</span>
         <span class="light-tile-state">${on ? 'ON' : (unavail ? '—' : 'OFF')}</span>`;
       if (!unavail) {
-        btn.addEventListener('click', () => this.toggle(item.entity_id, on));
+        // Read state from dataset at click time — no need to rebind after toggle
+        btn.addEventListener('click', () => this.toggle(item.entity_id, btn.dataset.state === 'on'));
       }
       grid.appendChild(btn);
     });
   },
 
   async toggle(entityId, currentOn) {
-    // Optimistic update
-    const btn = document.querySelector(`.light-tile[data-entity-id="${entityId}"]`);
     const nowOn = !currentOn;
+    const btn = document.querySelector(`.light-tile[data-entity-id="${entityId}"]`);
     if (btn) {
       btn.classList.toggle('active', nowOn);
       btn.dataset.state = nowOn ? 'on' : 'off';
       btn.querySelector('.light-tile-state').textContent = nowOn ? 'ON' : 'OFF';
-      // Rebind click with new state
-      btn.replaceWith(btn.cloneNode(true));
-      const newBtn = document.querySelector(`.light-tile[data-entity-id="${entityId}"]`);
-      if (newBtn) newBtn.addEventListener('click', () => this.toggle(entityId, nowOn));
     }
     try {
       await API.post('/api/lights/toggle', { entity_id: entityId, on: nowOn });
@@ -1261,6 +1246,18 @@ const PoolUI = {
     }
   },
 };
+
+/* ── Shared Helpers ─────────────────────────────────────────────────────── */
+
+/** Fetch pending tasks for all lists in parallel; failed lists return []. */
+async function _fetchPendingTasks(lists) {
+  return Promise.all(
+    lists.map(lst =>
+      API.get(`/api/lists/${encodeURIComponent(lst.id)}/tasks?completed=false`)
+         .catch(() => [])
+    )
+  );
+}
 
 /* ── Long Press Utility ─────────────────────────────────────────────────── */
 function addLongPress(el, onTap, onLongPress, delay = 600) {

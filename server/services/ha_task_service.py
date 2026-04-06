@@ -145,11 +145,14 @@ def get_tasks(entity_id, include_completed=True):
     """Fetch todo items for a given entity_id."""
     if not is_configured():
         return []
+    payload = {'entity_id': entity_id}
+    if not include_completed:
+        payload['status'] = ['needs_action']
     try:
         r = requests.post(
             f'{HA_URL}/api/services/todo/get_items?return_response',
             headers=_headers(),
-            json={'entity_id': entity_id},
+            json=payload,
             timeout=_TIMEOUT,
         )
         r.raise_for_status()
@@ -159,10 +162,7 @@ def get_tasks(entity_id, include_completed=True):
         items = []
         for eid, result in entity_data.items():
             for item in result.get('items', []):
-                status = item.get('status', 'needs_action')
-                completed = status == 'completed'
-                if not include_completed and completed:
-                    continue
+                completed = item.get('status', 'needs_action') == 'completed'
                 items.append({
                     'id': item.get('uid', item.get('summary', '')),
                     'list_id': entity_id,

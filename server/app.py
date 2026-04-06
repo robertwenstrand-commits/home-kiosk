@@ -103,6 +103,24 @@ def api_toggle_task():
     return jsonify(result)
 
 
+@app.route('/api/tasks/update', methods=['POST'])
+def api_update_task():
+    data = request.get_json(force=True)
+    entity_id = data.get('entity_id', '').strip()
+    item_uid  = data.get('item_uid', '').strip()
+    title     = (data.get('title') or '').strip()
+    if not entity_id or not item_uid or not title:
+        return jsonify({'error': 'entity_id, item_uid, and title required'}), 400
+    result = ha_tasks.update_task(
+        entity_id, item_uid, title,
+        due_date=data.get('due_date') or None,
+        description=data.get('description') or None,
+    )
+    if result is None:
+        return jsonify({'error': 'failed to update task'}), 502
+    return jsonify(result)
+
+
 @app.route('/api/tasks/delete', methods=['POST'])
 def api_delete_task():
     data = request.get_json(force=True)
@@ -132,8 +150,10 @@ def api_calendar_events():
 
 @app.route('/api/calendar/today')
 def api_today_events():
+    # Accept client-supplied date so the server timezone doesn't matter
+    date_str = request.args.get('date') or None
     return jsonify({
-        'events': calendar_svc.get_today_events(),
+        'events': calendar_svc.get_today_events(date_str),
         'last_sync': calendar_svc.get_last_sync(),
         'has_credentials': calendar_svc.has_credentials(),
     })
@@ -227,7 +247,7 @@ def api_garage_lock():
 # ── Gate API ───────────────────────────────────────────────────────────────────
 
 GATE_ENTITY = 'cover.garage_door_door_1'
-GATE_HOLD_INTERVAL = 20  # seconds between auto-opens during hold
+GATE_HOLD_INTERVAL = 8  # seconds between auto-opens during hold
 
 # Server-side hold-open state
 _gate_hold = {'active': False, 'end_time': 0.0}
@@ -337,6 +357,50 @@ def api_lights_toggle():
     if result is None:
         return jsonify({'error': 'failed'}), 502
     return jsonify({'ok': True})
+
+
+# ── Home Stats API ─────────────────────────────────────────────────────────────
+
+_HOME_STAT_ENTITIES = {
+    'pw_remaining': 'sensor.tesla_powerwall_2_battery_remaining',
+    'pw_capacity':  'sensor.tesla_powerwall_2_battery_capacity',
+    'pw_power':     'sensor.tesla_powerwall_2_power',
+    'cat_litter':   'sensor.catbox_prime_litter_level',
+    'cat_drawer':   'sensor.catbox_prime_waste_drawer',
+    'cat_status':   'sensor.catbox_prime_status_code',
+}
+
+
+@app.route('/api/home-stats')
+def api_home_stats():
+    states = _ha_states_map(_HOME_STAT_ENTITIES.values())
+
+    def fval(key, default=0.0):
+        raw = (states.get(_HOME_STAT_ENTITIES[key]) or {}).get('state', default)
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return float(default)
+
+    def sval(key, default='unknown'):
+        return (states.get(_HOME_STAT_ENTITIES[key]) or {}).get('state') or default
+
+    pw_remaining = fval('pw_remaining')
+    pw_capacity  = fval('pw_capacity', 13.5)
+    pw_pct       = round(pw_remaining / pw_capacity * 100) if pw_capacity > 0 else 0
+
+    return jsonify({
+        'powerwall': {
+            'pct':     min(100, max(0, pw_pct)),
+            'kwh':     round(pw_remaining, 1),
+            'power_w': fval('pw_power'),
+        },
+        'catbox': {
+            'litter_pct': round(fval('cat_litter')),
+            'waste_pct':  round(fval('cat_drawer')),
+            'status':     sval('cat_status'),
+        },
+    })
 
 
 # ── Pool API ───────────────────────────────────────────────────────────────────

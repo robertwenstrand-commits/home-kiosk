@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=25">
+  <link rel="stylesheet" href="/static/css/style.css?v=29">
 </head>
 <body>
 
@@ -379,6 +379,16 @@
   </button>
 </nav>
 
-<script src="/static/js/app.js?v=25"></script>
+<!-- Admin menu — triggered by simultaneous Home + Pool press -->
+<div id="admin-overlay" class="hidden" onclick="AdminUI.hide()">
+  <div id="admin-menu" onclick="event.stopPropagation()">
+    <div id="admin-title">Admin</div>
+    <button id="admin-btn-refresh" onclick="AdminUI.refresh()">&#8635; Refresh</button>
+    <button id="admin-btn-reboot" onclick="AdminUI.reboot()">&#9210; Reboot</button>
+    <button id="admin-btn-cancel" onclick="AdminUI.hide()">Cancel</button>
+  </div>
+</div>
+
+<script src="/static/js/app.js?v=29"></script>
 </body>
 </html>

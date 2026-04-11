@@ -150,6 +150,7 @@ const App = {
   },
 
   navigate(to) {
+    if (AdminUI && AdminUI._comboFired) return; // swallow nav when admin combo is active
     if (to === this.current) return;
 
     const fromEl = document.getElementById('screen-' + this.current);
@@ -1272,9 +1273,11 @@ const LightsUI = {
       btn.dataset.entityId = item.entity_id;
       btn.dataset.state = item.state;
       btn.innerHTML = `
-        <span class="light-tile-icon">${item.icon}</span>
         <span class="light-tile-name">${esc(item.name)}</span>
-        <span class="light-tile-state">${on ? 'ON' : (unavail ? '—' : 'OFF')}</span>`;
+        <div class="light-tile-paddle">
+          <div class="light-tile-paddle-on">${item.icon}</div>
+          <div class="light-tile-paddle-off">O</div>
+        </div>`;
       if (!unavail) {
         // Read state from dataset at click time — no need to rebind after toggle
         btn.addEventListener('click', () => this.toggle(item.entity_id, btn.dataset.state === 'on'));
@@ -1289,7 +1292,6 @@ const LightsUI = {
     if (btn) {
       btn.classList.toggle('active', nowOn);
       btn.dataset.state = nowOn ? 'on' : 'off';
-      btn.querySelector('.light-tile-state').textContent = nowOn ? 'ON' : 'OFF';
     }
     try {
       await API.post('/api/lights/toggle', { entity_id: entityId, on: nowOn });
@@ -1580,6 +1582,63 @@ function addLongPress(el, onTap, onLongPress, delay = 450) {
   el.addEventListener('mouseleave', cancel);
 }
 
+/* ── Admin Menu (Home + Pool simultaneous press) ────────────────────────── */
+const AdminUI = {
+  _held: new Set(),
+  _comboFired: false,
+
+  init() {
+    const home = document.querySelector('[data-screen="dashboard"]');
+    const pool = document.querySelector('[data-screen="pool"]');
+    [home, pool].forEach(btn => {
+      const screen = btn.dataset.screen;
+      btn.addEventListener('pointerdown', () => this._down(screen), true);
+      btn.addEventListener('pointerup',   () => this._up(screen),   true);
+      btn.addEventListener('pointercancel', () => this._up(screen), true);
+    });
+  },
+
+  _down(screen) {
+    this._held.add(screen);
+    if (this._held.has('dashboard') && this._held.has('pool')) {
+      this._comboFired = true;
+      this.show();
+    }
+  },
+
+  _up(screen) {
+    this._held.delete(screen);
+    if (this._held.size === 0) this._comboFired = false;
+  },
+
+  show() {
+    document.getElementById('admin-overlay').classList.remove('hidden');
+  },
+
+  hide() {
+    document.getElementById('admin-overlay').classList.add('hidden');
+  },
+
+  async refresh() {
+    this.hide();
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    window.location.reload(true);
+  },
+
+  async reboot() {
+    document.getElementById('admin-btn-reboot').textContent = 'Rebooting…';
+    document.getElementById('admin-btn-reboot').disabled = true;
+    try {
+      await fetch('http://localhost:7070/reboot');
+    } catch {
+      // Expected — connection drops immediately on reboot
+    }
+  },
+};
+
 /* ── Clock ──────────────────────────────────────────────────────────────── */
 function updateClock() {
   const now = new Date();
@@ -1649,6 +1708,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await App.loadConfig();
   GarageUI.init();
   GateUI.init();
+  AdminUI.init();
   DashUI.refresh();
 
   // Refresh dashboard every 5 minutes while on it

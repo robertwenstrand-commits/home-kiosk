@@ -1,6 +1,7 @@
 # Secrets — never commit
 .env
 server/.env
+server/credentials.json
 
 # Runtime data — lives on the host, mounted into Docker
 data/

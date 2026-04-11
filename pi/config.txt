@@ -1,0 +1,37 @@
+# FullPageOS config.txt — tuned for Headsun 7" 1024x600 HDMI touchscreen
+# Hardware: Raspberry Pi 4
+#
+# Connections:
+#   Video : micro-HDMI port 0 (port closest to USB-C power)
+#   Touch : USB cable from display "Touch" port to Pi USB
+
+# Force HDMI output — this display has no EDID, so Pi won't auto-detect it
+hdmi_force_hotplug=1
+
+# DMT mode with custom resolution (Pi 4 micro-HDMI port 0)
+hdmi_group=2
+hdmi_mode=87
+hdmi_cvt=1024 600 60 6 0 0 0
+
+# Match framebuffer to panel resolution
+framebuffer_width=1024
+framebuffer_height=600
+
+# Ensure HDMI audio/video signal is active (needed for some displays)
+hdmi_drive=2
+
+# Boost HDMI signal strength for reliable sync
+config_hdmi_boost=4
+
+# Ensure enough USB current for the touch controller
+max_usb_current=1
+
+# No black border
+disable_overscan=1
+
+# NOTE: Do NOT add vc4-kms-v3d overlay — it causes boot hangs on Pi 4
+# FullPageOS handles GPU detection automatically at runtime
+
+# Rotate display if needed (0=normal, 1=90°, 2=180°, 3=270°)
+# Uncomment and adjust if your mount orientation requires it:
+# display_rotate=0

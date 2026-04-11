@@ -1,0 +1,18 @@
+# Armbian headless first-run configuration
+# Copy this file to the boot partition of the SD card as: armbian_first_run.txt
+# Armbian will apply it on first boot, then delete it.
+
+FR_general_delete_this_file_after_completion=1
+
+# ── SSH ────────────────────────────────────────────────────────────────────
+FR_net_change_defaults=1
+FR_net_ethernet_enabled=0
+FR_net_wifi_enabled=1
+
+# ── WiFi credentials ───────────────────────────────────────────────────────
+FR_net_wifi_ssid='It Burns When IP'
+FR_net_wifi_key='cassie2000'
+FR_net_wifi_countrycode='US'
+
+# ── Keep default root user active for first SSH login ─────────────────────
+FR_net_use_networkmanager=1

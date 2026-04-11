@@ -233,7 +233,7 @@ const App = {
 /* ── Dashboard UI ───────────────────────────────────────────────────────── */
 const DashUI = {
   async refresh() {
-    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load(), HomeStatsUI.load()]);
+    await Promise.all([this.loadEvents(), this.loadTasks(), LightsUI.load(), HomeStatsUI.load(), UpsUI.load()]);
   },
 
   async loadEvents() {
@@ -392,6 +392,53 @@ const HomeStatsUI = {
         <span class="stat-row-val${cat.waste_pct >= 90 ? ' stat-warn' : ''}">${cat.waste_pct}%${drawerWarn}</span>
       </div>
       <div class="stat-footer">${statusLabel}</div>`;
+  },
+};
+
+/* ── UPS UI (local battery pack — only shown if localhost:7070/ups responds) */
+const UpsUI = {
+  async load() {
+    try {
+      const data = await fetch('http://localhost:7070/ups').then(r => r.json());
+      if (data.battery_pct === null) return;
+      this._renderCard(data);
+      this._renderTopbar(data);
+      document.getElementById('dash-ups').classList.remove('hidden');
+      document.getElementById('topbar-battery').classList.remove('hidden');
+    } catch {
+      // No UPS service on this device — stays hidden
+    }
+  },
+
+  _renderCard(data) {
+    const el  = document.getElementById('dash-ups-body');
+    const pct = Math.min(100, Math.max(0, data.battery_pct));
+    const col = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
+    const status = data.vin_good ? 'Charging' : 'On Battery';
+    const v = (data.vout_mv / 1000).toFixed(2);
+    el.innerHTML = `
+      <div class="stat-pct-row">
+        <span class="stat-pct-big" style="color:${col}">${pct}%</span>
+        <span class="stat-kwh-label">${status} &middot; ${v}V</span>
+      </div>
+      <div class="stat-bar-track"><div class="stat-bar" style="width:${pct}%;background:${col}"></div></div>`;
+  },
+
+  _renderTopbar(data) {
+    const pct  = Math.min(100, Math.max(0, data.battery_pct));
+    const col  = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
+    // Fill bar: max inner width is 44px (48px body - 2px padding each side)
+    const fillW = Math.round(pct * 44 / 100);
+    document.getElementById('battery-fill').setAttribute('width', fillW);
+    document.getElementById('battery-fill').setAttribute('fill', col);
+    document.getElementById('battery-bolt').setAttribute('opacity', data.vin_good ? '1' : '0');
+    document.getElementById('battery-pct-text').textContent = `${pct}%`;
+    document.getElementById('battery-pct-text').style.color = col;
+    // Shift bolt to center of filled portion when charging
+    if (data.vin_good) {
+      const boltX = Math.max(14, Math.min(36, 3 + fillW / 2));
+      document.getElementById('battery-bolt').setAttribute('x', boltX);
+    }
   },
 };
 
@@ -1490,30 +1537,44 @@ function _buildDayBulletsHtml(evs) {
 }
 
 /* ── Long Press Utility ─────────────────────────────────────────────────── */
-function addLongPress(el, onTap, onLongPress, delay = 600) {
+function addLongPress(el, onTap, onLongPress, delay = 450) {
   let timer = null;
   let triggered = false;
+  let touchActive = false;
 
   const start = (e) => {
-    e.preventDefault(); // suppress browser context menu / callout on long press
+    if (e.type === 'mousedown' && touchActive) return;
+    if (timer !== null) return;
+    e.preventDefault();
     triggered = false;
+    if (e.type === 'touchstart') touchActive = true;
     timer = setTimeout(() => {
       triggered = true;
+      timer = null;
       onLongPress();
     }, delay);
   };
 
-  const cancel = () => clearTimeout(timer);
-
-  const end = () => {
+  const cancel = (e) => {
+    if (e && e.type === 'mouseleave' && touchActive) return;
     clearTimeout(timer);
-    if (!triggered) onTap();
+    timer = null;
   };
 
-  el.addEventListener('touchstart', start, { passive: false }); // must be non-passive for preventDefault
+  const end = (e) => {
+    if (e.type === 'mouseup' && touchActive) return;
+    clearTimeout(timer);
+    timer = null;
+    if (!triggered) onTap();
+    if (e.type === 'touchend' || e.type === 'touchcancel') {
+      setTimeout(() => { touchActive = false; }, 300);
+    }
+  };
+
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.addEventListener('touchstart', start, { passive: false });
   el.addEventListener('touchend', end);
   el.addEventListener('touchcancel', cancel);
-  // Mouse fallback for non-touch (desktop testing)
   el.addEventListener('mousedown', start);
   el.addEventListener('mouseup', end);
   el.addEventListener('mouseleave', cancel);

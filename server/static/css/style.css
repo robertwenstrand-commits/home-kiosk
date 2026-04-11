@@ -2,23 +2,23 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #0f0f1a;
-  --bg2:         #1a1a2e;
-  --bg3:         #16213e;
-  --surface:     #1e2440;
-  --surface2:    #252d4a;
-  --border:      #2e3a5c;
-  --text:        #e8eaf6;
-  --text-dim:    #8892b0;
-  --text-muted:  #4a5568;
+  --bg:          #1e2235;
+  --bg2:         #272c48;
+  --bg3:         #222845;
+  --surface:     #2f3660;
+  --surface2:    #394272;
+  --border:      #4a5480;
+  --text:        #f5f7ff;
+  --text-dim:    #c8d0f0;
+  --text-muted:  #8a98c4;
   --accent:      #4ecdc4;
   --accent2:     #45b7d1;
   --danger:      #ff6b6b;
   --warn:        #ffd166;
   --success:     #06d6a0;
 
-  --topbar-h:    56px;
-  --bottomnav-h: 70px;
+  --topbar-h:    112px;
+  --bottomnav-h: 112px;
   --radius:      12px;
   --radius-sm:   8px;
   --transition:  0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -31,8 +31,11 @@ html, body {
   -webkit-touch-callout: none;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 15px;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+               'Noto Color Emoji', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -62,21 +65,22 @@ html, body {
 
 #topbar-left {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 #topbar-date-temp {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
 
 #clock-time {
-  font-size: 22px;
+  font-size: 46px;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--accent);
@@ -85,18 +89,36 @@ html, body {
 }
 
 #clock-date {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-dim);
   white-space: nowrap;
 }
 
 #air-temp-display {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   letter-spacing: 0.2px;
+}
+
+#topbar-battery {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+#battery-pct-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 44px;
 }
 
 #status-icons {
@@ -104,6 +126,7 @@ html, body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .badge {
@@ -126,8 +149,8 @@ html, body {
 /* ── Screens ───────────────────────────────────────────────────────────── */
 #screens {
   position: fixed;
-  top: 56px;  /* --topbar-h */
-  bottom: 70px; /* --bottomnav-h */
+  top: 112px;  /* --topbar-h */
+  bottom: 112px; /* --bottomnav-h */
   left: 0;
   right: 0;
   overflow: hidden;
@@ -165,7 +188,7 @@ html, body {
 
 .screen-title-row h2 {
   flex: 1;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -175,7 +198,7 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 70px; /* --bottomnav-h — plain px avoids calc/env parse issues */
+  height: 112px; /* --bottomnav-h — plain px avoids calc/env parse issues */
   background: var(--bg3);
   border-top: 1px solid var(--border);
   display: flex;
@@ -188,14 +211,14 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 8px;
   background: none;
   border: none;
   color: var(--text-dim);
   cursor: pointer;
-  padding: 8px 4px;
+  padding: 10px 4px;
   transition: color var(--transition), background var(--transition);
-  border-top: 2px solid transparent;
+  border-top: 3px solid transparent;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -206,7 +229,7 @@ html, body {
   border-top-color: var(--accent);
 }
 
-.nav-icon { font-size: 22px; line-height: 1; }
+.nav-icon { font-size: 30px; line-height: 1; }
 .nav-label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
@@ -299,17 +322,75 @@ html, body {
 
 /* ── Dashboard ─────────────────────────────────────────────────────────── */
 .dash-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-areas:
+    "left   left   lights    lights"
+    "left   left   catbox    powerwall";
   gap: 14px;
-  align-items: flex-start;
+  align-items: start;
 }
-.dash-col-left,
-.dash-col-right {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
+
+.dash-col-left    { grid-area: left; display: flex; flex-direction: column; gap: 14px; }
+.dash-lights-pane { grid-area: lights; }
+#dash-catbox      { grid-area: catbox; }
+#dash-powerwall   { grid-area: powerwall; }
+
+/* Condense stat cards to fit narrower columns */
+#dash-catbox .card-body,
+#dash-powerwall .card-body {
+  padding: 8px 12px;
+  min-height: 0;
+}
+#dash-catbox .stat-pct-big,
+#dash-powerwall .stat-pct-big {
+  font-size: 22px;
+}
+#dash-catbox .stat-bar-track,
+#dash-powerwall .stat-bar-track {
+  height: 5px;
+  margin-bottom: 6px;
+}
+#dash-catbox .stat-footer,
+#dash-powerwall .stat-footer {
+  font-size: 11px;
+}
+#dash-ups .card-body {
+  padding: 8px 12px;
+  min-height: 0;
+}
+#dash-ups .stat-pct-big {
+  font-size: 22px;
+}
+#dash-ups .stat-bar-track {
+  height: 5px;
+  margin-bottom: 0;
+}
+
+/* Mobile: compact topbar + single-column dashboard */
+@media (max-width: 600px) {
+  #topbar { height: 68px; padding: 0 10px; gap: 8px; }
+  #screens { top: 68px; }
+  #clock-time { font-size: 26px; }
+  #clock-date { font-size: 13px; }
+  #air-temp-display { font-size: 13px; }
+  #status-icons { gap: 6px; }
+  #garage-lock-btn { width: 28px; height: 28px; }
+  #garage-lock-icon, #garage-lock-icon svg { width: 24px; height: 24px; }
+  #gate-status-icon, #gate-status-icon svg { width: 24px; height: 24px; }
+  #gate-widget { gap: 5px; }
+  #gate-btn { min-width: 68px; padding: 4px 8px 3px; touch-action: none; }
+  #gate-btn-label { font-size: 14px; }
+  #gate-btn-hint { font-size: 10px; }
+
+  .dash-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "left"
+      "lights"
+      "catbox"
+      "powerwall";
+  }
 }
 
 .dash-card {
@@ -331,8 +412,8 @@ html, body {
   padding: 12px 14px 8px;
   border-bottom: 1px solid var(--border);
 }
-.card-icon { font-size: 18px; }
-.card-title { flex: 1; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); }
+.card-icon { font-size: 22px; }
+.card-title { flex: 1; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); }
 .card-arrow { font-size: 20px; color: var(--text-muted); }
 
 .card-body {
@@ -347,7 +428,7 @@ html, body {
   gap: 14px;
 }
 .dash-col-head {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -373,15 +454,15 @@ html, body {
   margin-top: 5px;
 }
 .event-info { flex: 1; min-width: 0; }
-.event-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.event-time { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.event-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-time { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
 
-.dash-no-events { color: var(--text-muted); font-size: 13px; font-style: italic; }
+.dash-no-events { color: var(--text-muted); font-size: 14px; font-style: italic; }
 
 /* Dashboard tasks summary */
 .dash-list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dash-list-name { flex: 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
-.dash-list-count { font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.dash-list-name { flex: 1; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
+.dash-list-count { font-size: 13px; font-weight: 700; flex-shrink: 0; }
 
 .dash-list-header {
   display: flex;
@@ -410,7 +491,7 @@ html, body {
 }
 
 .dash-task-title {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -444,7 +525,7 @@ html, body {
   line-height: 1;
 }
 .stat-kwh-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1;
 }
@@ -461,7 +542,7 @@ html, body {
   transition: width 0.5s ease;
 }
 .stat-footer {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 0.3px;
 }
@@ -472,13 +553,13 @@ html, body {
   margin-bottom: 7px;
 }
 .stat-row-label {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   width: 40px;
   flex-shrink: 0;
 }
 .stat-row-val {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   width: 32px;
   text-align: right;
@@ -539,7 +620,7 @@ html, body {
 }
 
 .light-tile-name {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-dim);
   text-align: center;
@@ -551,7 +632,7 @@ html, body {
 }
 
 .light-tile-state {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-muted);
   letter-spacing: 0.3px;
@@ -630,7 +711,7 @@ html, body {
   flex-shrink: 0;
 }
 .list-card-task-title {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -641,7 +722,7 @@ html, body {
   font-style: italic;
   color: var(--text-muted);
 }
-.list-card-sub { font-size: 12px; color: var(--text-dim); }
+.list-card-sub { font-size: 13px; color: var(--text-dim); }
 
 /* Slide panel (task detail) */
 .slide-panel {
@@ -713,7 +794,7 @@ html, body {
 }
 .task-item.completed .task-title { text-decoration: line-through; color: var(--text-dim); }
 
-.task-due { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+.task-due { font-size: 13px; color: var(--text-dim); flex-shrink: 0; }
 .task-due.overdue { color: var(--danger); }
 
 .task-delete {
@@ -741,7 +822,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
   cursor: pointer;
 }
@@ -767,7 +848,7 @@ html, body {
   margin-bottom: 6px;
 }
 .cal-grid-header span {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-dim);
   padding: 4px 0;
@@ -797,7 +878,7 @@ html, body {
 .cal-day:active { background: var(--surface2); }
 
 .cal-day-num {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1;
   text-align: center;
@@ -919,19 +1000,19 @@ html, body {
   border-left: 3px solid var(--accent);
   animation: fadeSlideUp 0.25s both;
 }
-.cal-event-time { font-size: 12px; color: var(--text-dim); min-width: 50px; flex-shrink: 0; }
-.cal-event-title { font-size: 14px; font-weight: 600; flex: 1; }
-.cal-event-loc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.cal-event-time { font-size: 13px; color: var(--text-dim); min-width: 50px; flex-shrink: 0; }
+.cal-event-title { font-size: 16px; font-weight: 600; flex: 1; }
+.cal-event-loc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
-.cal-no-events { color: var(--text-muted); font-size: 13px; font-style: italic; }
+.cal-no-events { color: var(--text-muted); font-size: 14px; font-style: italic; }
 
-.sync-note { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 8px; }
+.sync-note { font-size: 12px; color: var(--text-muted); text-align: right; margin-top: 8px; }
 .notice {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-dim);
   margin-top: 12px;
 }
@@ -1158,8 +1239,8 @@ html, body {
 
 /* ── Garage Lock Widget ──────────────────────────────────────────────────── */
 #garage-lock-btn {
-  width: 36px;
-  height: 36px;
+  width: 52px;
+  height: 52px;
   background: none;
   border: none;
   cursor: pointer;
@@ -1171,18 +1252,19 @@ html, body {
   padding: 0;
   transition: color 0.3s, opacity 0.2s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: none;
   flex-shrink: 0;
 }
 #garage-lock-btn:active { opacity: 0.5; }
 
 #garage-lock-icon {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-#garage-lock-icon svg { width: 32px; height: 32px; }
+#garage-lock-icon svg { width: 48px; height: 48px; }
 
 /* ── Gate Widget ─────────────────────────────────────────────────────────── */
 #gate-widget {
@@ -1192,8 +1274,8 @@ html, body {
 }
 
 #gate-status-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1203,14 +1285,15 @@ html, body {
 }
 
 #gate-status-icon svg {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
 }
 
 #gate-btn {
   height: auto;
-  min-width: 72px;
-  padding: 6px 12px 4px;
+  min-width: 110px;
+  padding: 10px 20px 8px;
+  touch-action: none;
   background: var(--surface2);
   color: var(--text);
   border: 1.5px solid var(--border);
@@ -1226,13 +1309,13 @@ html, body {
 }
 
 #gate-btn-label {
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 #gate-btn-hint {
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
   letter-spacing: 0.2px;

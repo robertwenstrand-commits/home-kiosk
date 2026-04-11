@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=7">
+  <link rel="stylesheet" href="/static/css/style.css?v=25">
 </head>
 <body>
+
 
 <div id="app">
 
@@ -18,6 +19,19 @@
         <div id="clock-date">Loading...</div>
         <div id="air-temp-display" class="hidden">&#127782; <span id="air-temp-val"></span></div>
       </div>
+    </div>
+    <div id="topbar-battery" class="hidden">
+      <svg id="battery-svg" viewBox="0 0 56 26" width="56" height="26" aria-hidden="true">
+        <!-- terminal nub -->
+        <rect x="50" y="8" width="5" height="10" rx="2" fill="currentColor" opacity="0.6"/>
+        <!-- outline -->
+        <rect x="1" y="1" width="48" height="24" rx="5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <!-- fill bar -->
+        <rect id="battery-fill" x="3" y="3" width="0" height="20" rx="3"/>
+        <!-- charging bolt -->
+        <text id="battery-bolt" x="25" y="19" text-anchor="middle" font-size="14" fill="white" opacity="0" style="cursor:none">⚡</text>
+      </svg>
+      <span id="battery-pct-text"></span>
     </div>
     <div id="status-icons">
       <span id="offline-badge" class="badge badge-warn hidden">OFFLINE</span>
@@ -43,9 +57,7 @@
       <div class="screen-content">
         <div class="dash-layout">
 
-          <!-- Left column: Schedule + Lights -->
           <div class="dash-col-left">
-
             <div class="dash-card" id="dash-events" onclick="App.navigate('calendar')">
               <div class="card-header">
                 <span class="card-icon">&#128197;</span>
@@ -57,24 +69,9 @@
               </div>
             </div>
 
-            <div class="dash-lights-pane">
-              <div class="dash-lights-header">
-                <span class="card-icon">&#128161;</span>
-                <span class="card-title">Lights &amp; Switches</span>
-              </div>
-              <div id="dash-lights-grid" class="dash-lights-grid">
-                <div class="loading-dots"><span></span><span></span><span></span></div>
-              </div>
-            </div>
-
-          </div><!-- .dash-col-left -->
-
-          <!-- Right column: Tasks + Litter Box + Powerwall -->
-          <div class="dash-col-right">
-
             <div class="dash-card" id="dash-tasks" onclick="App.navigate('tasks')">
               <div class="card-header">
-                <span class="card-icon">&#10003;</span>
+                <span class="card-icon">✅</span>
                 <span class="card-title">Tasks</span>
                 <span class="card-arrow">&#8250;</span>
               </div>
@@ -82,30 +79,48 @@
                 <div class="loading-dots"><span></span><span></span><span></span></div>
               </div>
             </div>
+          </div>
 
-            <div class="dash-card" id="dash-catbox">
-              <div class="card-header">
-                <span class="card-icon">&#128049;</span>
-                <span class="card-title">Litter Box</span>
-              </div>
-              <div class="card-body" id="dash-catbox-body">
-                <div class="loading-dots"><span></span><span></span><span></span></div>
-              </div>
+          <div class="dash-lights-pane">
+            <div class="dash-lights-header">
+              <span class="card-icon">&#128161;</span>
+              <span class="card-title">Lights &amp; Switches</span>
             </div>
-
-            <div class="dash-card" id="dash-powerwall">
-              <div class="card-header">
-                <span class="card-icon">&#9889;</span>
-                <span class="card-title">Powerwall</span>
-              </div>
-              <div class="card-body" id="dash-powerwall-body">
-                <div class="loading-dots"><span></span><span></span><span></span></div>
-              </div>
+            <div id="dash-lights-grid" class="dash-lights-grid">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
             </div>
+          </div>
 
-          </div><!-- .dash-col-right -->
+          <div class="dash-card" id="dash-catbox">
+            <div class="card-header">
+              <span class="card-icon">&#128049;</span>
+              <span class="card-title">Litter Box</span>
+            </div>
+            <div class="card-body" id="dash-catbox-body">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+
+          <div class="dash-card" id="dash-powerwall">
+            <div class="card-header">
+              <span class="card-icon">⚡️</span>
+              <span class="card-title">Powerwall</span>
+            </div>
+            <div class="card-body" id="dash-powerwall-body">
+              <div class="loading-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
 
         </div><!-- .dash-layout -->
+
+        <!-- UPS Battery (hidden until localhost:7070/ups responds with data) -->
+        <div class="dash-card hidden" id="dash-ups" style="margin-top:14px">
+          <div class="card-header">
+            <span class="card-icon">&#128267;</span>
+            <span class="card-title">Battery</span>
+          </div>
+          <div class="card-body" id="dash-ups-body"></div>
+        </div>
 
         <!-- Camera Preview (hidden until JS confirms camera is configured) -->
         <div class="dash-card hidden" id="dash-camera" onclick="App.navigate('camera')" style="margin-top:14px">
@@ -198,7 +213,7 @@
             </div>
             <div class="pool-zone-btns">
               <button class="pool-ctrl-btn" id="pool-pump-btn" onclick="PoolUI.toggleSwitch('switch.pool_pump','pool-pump-btn','pool-pump-state')">
-                <span class="pool-ctrl-icon">&#9881;</span>
+                <span class="pool-ctrl-icon">⚙️</span>
                 <span class="pool-ctrl-label">Pump</span>
                 <span class="pool-ctrl-state" id="pool-pump-state">--</span>
               </button>
@@ -229,7 +244,7 @@
             </div>
             <div class="pool-zone-btns">
               <button class="pool-ctrl-btn" id="spa-pump-btn" onclick="PoolUI.toggleSwitch('switch.spa_pump','spa-pump-btn','spa-pump-state')">
-                <span class="pool-ctrl-icon">&#9881;</span>
+                <span class="pool-ctrl-icon">⚙️</span>
                 <span class="pool-ctrl-label">Pump</span>
                 <span class="pool-ctrl-state" id="spa-pump-state">--</span>
               </button>
@@ -342,11 +357,11 @@
      stacking context or transform that could interfere with position:fixed -->
 <nav id="bottomnav">
   <button class="nav-btn active" data-screen="dashboard" onclick="App.navigate('dashboard')">
-    <span class="nav-icon">&#8962;</span>
+    <span class="nav-icon">🏠</span>
     <span class="nav-label">Home</span>
   </button>
   <button class="nav-btn" data-screen="tasks" onclick="App.navigate('tasks')">
-    <span class="nav-icon">&#10003;</span>
+    <span class="nav-icon">✅</span>
     <span class="nav-label">Tasks</span>
   </button>
   <button class="nav-btn" data-screen="calendar" onclick="App.navigate('calendar')">
@@ -364,6 +379,6 @@
   </button>
 </nav>
 
-<script src="/static/js/app.js?v=7"></script>
+<script src="/static/js/app.js?v=25"></script>
 </body>
 </html>

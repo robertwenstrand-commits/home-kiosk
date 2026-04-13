@@ -57,14 +57,13 @@ network:
 ```
 verbosity=1
 bootlogo=false
-console=display
+console=both
 disp_mode=1024x600p60
 overlay_prefix=sun50i-h618
 overlays=usb-otg-host
 rootdev=UUID=<your-uuid>
 rootfstype=ext4
 extraargs=reboot=hard
-usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
 ```
 **Changes from stock and reasons:**
 - `overlay_prefix=sun50i-h618` — Stock Armbian uses `sun50i-h616` which is wrong for the H618 SoC. Overlays won't load without this fix.
@@ -104,7 +103,7 @@ gpasswd -a orangepi autologin
 apt-get install -y \
   xserver-xorg-core xserver-xorg-input-evdev xserver-xorg-input-libinput \
   xinit xinput openbox lightdm chromium \
-  x11-xserver-utils xdotool unclutter \
+  x11-xserver-utils xdotool unclutter xprintidle \
   fonts-liberation fonts-noto-color-emoji fonts-roboto \
   dbus-x11 python3-serial
 ```
@@ -113,6 +112,7 @@ apt-get install -y \
 - `xserver-xorg-input-libinput` — Required for touchscreen to send XInput2 touch events instead of mouse events. Without it, the touchscreen moves a cursor instead of behaving like a tablet.
 - `fonts-noto-color-emoji` — Without this, emoji icons used in the dashboard UI render as boxes.
 - `python3-serial` — Required for the UPS monitor UART daemon.
+- `xprintidle` — Reports X server idle time in milliseconds. Required for the display dimmer.
 
 ### 9. Enable LightDM
 ```bash
@@ -129,13 +129,6 @@ autologin-user-timeout=0
 user-session=openbox
 ```
 **Reason:** LightDM requires explicit configuration to autologin without a password prompt.
-
-### 11. Disable serial console on ttyS0
-```bash
-systemctl disable --now serial-getty@ttyS0.service
-systemctl mask serial-getty@ttyS0.service
-```
-**Reason:** The UPS monitor reads battery data from `/dev/ttyS0`. The serial console holds this port open, preventing the UPS daemon from accessing it.
 
 ### 12. Disable X screen blanking
 **File:** `/etc/X11/xorg.conf.d/10-blanking.conf`
@@ -166,7 +159,7 @@ EndSection
 ```ini
 [Service]
 ExecStart=
-ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=30 --interface=wlan0
+ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=45 --interface=wlan0
 ```
 **Reason:** The default wait-online service blocks boot for up to 2 minutes if WiFi is slow to connect. This caps it at 30 seconds on wlan0 only.
 
@@ -180,6 +173,20 @@ timedatectl set-timezone America/Los_Angeles
 ## UPS Monitor
 
 ### 16. Install UPS monitor daemon
+
+#### Wiring — RPi UPSPack Standard V3P → Orange Pi Zero 2W
+
+Connect the V3P communication header to the Pi's 40-pin GPIO header as follows:
+
+| V3P Pin | → | Pi Physical Pin | Pi Function        | Notes                           |
+|---------|---|-----------------|--------------------|---------------------------------|
+| GND     | → | Pin 6           | Ground             |                                 |
+| TX      | → | **Pin 10**      | UART0 RX (ttyS0)   | Crossed: V3P TX → Pi RX         |
+| RX      | → | **Pin 8**       | UART0 TX (ttyS0)   | Crossed: V3P RX → Pi TX         |
+| STA     | → | **Pin 11**      | GPIO PC7           | Power-loss signal (active low)  |
+
+The STA pin goes low when external power fails. It is not currently read by the software daemon but is wired for future use or hardware watchdog integration.
+
 **File:** `/usr/local/bin/ups-monitor.py`  
 Reads the RPi UPSPack Standard V3P battery data from `/dev/ttyS0` at 9600 baud. Data format: `$ <model>,Vin <GOOD/BAD>,BATCAP <pct>,Vout <mv> )`. Exposes JSON at `http://localhost:7070/ups`. Also exposes `/reboot` endpoint to trigger a system reboot.
 
@@ -221,6 +228,24 @@ until xset q &>/dev/null; do sleep 0.5; done
 # Force HDMI output mode (fixes display after warm reboot)
 xrandr --output HDMI-1 --mode 1024x600 &
 
+# Dim display to 50% after 5 minutes of no touch input; restore on activity
+(
+  DIM_AFTER=300
+  DIMMED=0
+  while true; do
+    IDLE_MS=$(xprintidle 2>/dev/null || echo 0)
+    IDLE_SEC=$((IDLE_MS / 1000))
+    if [ "$IDLE_SEC" -ge "$DIM_AFTER" ] && [ "$DIMMED" -eq 0 ]; then
+      xrandr --output HDMI-1 --brightness 0.5
+      DIMMED=1
+    elif [ "$IDLE_SEC" -lt "$DIM_AFTER" ] && [ "$DIMMED" -eq 1 ]; then
+      xrandr --output HDMI-1 --brightness 1.0
+      DIMMED=0
+    fi
+    sleep 5
+  done
+) &
+
 (
   while true; do
     chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
@@ -238,11 +263,8 @@ xrandr --output HDMI-1 --mode 1024x600 &
 - `--enable-pinch --overscroll-history-navigation=0` — Enables pinch-to-zoom, disables swipe-back gesture (would navigate away from the kiosk page).
 - `xrandr --output HDMI-1 --mode 1024x600` — Forces the display mode on every X startup. Required because after a warm reboot the H618's HDMI PHY doesn't reinitialize cleanly and the display shows nothing without this.
 - Restart loop — Chromium occasionally crashes; the loop restarts it automatically.
-- `unclutter -idle 0.1 -root` — Hides the mouse cursor immediately (0.1s idle).
+- Display dimmer — uses `xprintidle` to track X idle time. `xrandr --brightness` applies a software gamma adjustment (not true backlight control, but effective). Polls every 5 seconds; 5-second lag on restore is acceptable for a kiosk. Requires `xprintidle` package.
 
-### 18. Hide cursor in CSS
-**`server/static/css/style.css`:** `cursor: none` on `html, body`  
-**Reason:** Belt-and-suspenders cursor hiding alongside unclutter.
 
 ---
 

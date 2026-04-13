@@ -60,14 +60,14 @@ bootlogo=false
 console=both
 disp_mode=1024x600p60
 overlay_prefix=sun50i-h618
-overlays=usb-otg-host
+overlays=usb-otg-host ph-uart5
 rootdev=UUID=<your-uuid>
 rootfstype=ext4
 extraargs=reboot=hard
 ```
 **Changes from stock and reasons:**
 - `overlay_prefix=sun50i-h618` — Stock Armbian uses `sun50i-h616` which is wrong for the H618 SoC. Overlays won't load without this fix.
-- `overlays=usb-otg-host` — Enables USB-C OTG host mode (see overlay below). Required for touchscreen input.
+- `overlays=usb-otg-host ph-uart5` — `usb-otg-host` enables USB-C OTG host mode (see overlay below). `ph-uart5` enables UART5 on pins 11/13 for the UPS monitor.
 - `extraargs=reboot=hard` — Without this, `reboot` does a warm reset that leaves the Unisoc WiFi chip and HDMI subsystem in a broken state, requiring a power cycle. This forces a full hardware reset.
 - `disp_mode=1024x600p60` — Must match the display's native resolution. Stock Armbian defaults to `1920x1080p60`, which the 1024×600 panel cannot sync to. The display will be blank from power-on until X starts if this is wrong. Setting it correctly ensures output is visible during U-Boot and early boot as well.
 
@@ -178,17 +178,19 @@ timedatectl set-timezone America/Los_Angeles
 
 Connect the V3P communication header to the Pi's 40-pin GPIO header as follows:
 
-| V3P Pin | → | Pi Physical Pin | Pi Function        | Notes                           |
-|---------|---|-----------------|--------------------|---------------------------------|
-| GND     | → | Pin 6           | Ground             |                                 |
-| TX      | → | **Pin 10**      | UART0 RX (ttyS0)   | Crossed: V3P TX → Pi RX         |
-| RX      | → | **Pin 8**       | UART0 TX (ttyS0)   | Crossed: V3P RX → Pi TX         |
-| STA     | → | **Pin 11**      | GPIO PC7           | Power-loss signal (active low)  |
+| V3P Pin | → | Pi Physical Pin | Pi Function         | Notes                           |
+|---------|---|-----------------|---------------------|---------------------------------|
+| GND     | → | **Pin 6**       | Ground              |                                 |
+| TX      | → | **Pin 13**      | UART5 RX (PH3)      | Crossed: V3P TX → Pi RX         |
+| RX      | → | **Pin 11**      | UART5 TX (PH2)      | Crossed: V3P RX → Pi TX         |
+| STA     | → | **Pin 10**      | GPIO PH1 (GPIO 225) | Power-loss signal (active low)  |
+
+UART5 is enabled via the `ph-uart5` overlay in `armbianEnv.txt` (see step 5) and appears as `/dev/ttyS5`. Do not use UART0 (pins 8/10 TX/RX) — it is reserved as the kernel debug console.
 
 The STA pin goes low when external power fails. It is not currently read by the software daemon but is wired for future use or hardware watchdog integration.
 
 **File:** `/usr/local/bin/ups-monitor.py`  
-Reads the RPi UPSPack Standard V3P battery data from `/dev/ttyS0` at 9600 baud. Data format: `$ <model>,Vin <GOOD/BAD>,BATCAP <pct>,Vout <mv> )`. Exposes JSON at `http://localhost:7070/ups`. Also exposes `/reboot` endpoint to trigger a system reboot.
+Reads the RPi UPSPack Standard V3P battery data from `/dev/ttyS5` at 9600 baud. Data format: `$ <model>,Vin <GOOD/BAD>,BATCAP <pct>,Vout <mv> )`. Exposes JSON at `http://localhost:7070/ups`. Also exposes `/reboot` endpoint to trigger a system reboot. Update the device path in the script from `/dev/ttyS0` to `/dev/ttyS5`.
 
 **Critical:** The regex for parsing must be `([^,]+)` for the model name field, not `(\S+)`, because the model name "SmartUPS V3.2P" contains a space.
 

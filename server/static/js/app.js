@@ -412,7 +412,7 @@ const UpsUI = {
     const el  = document.getElementById('dash-ups-body');
     const pct = Math.min(100, Math.max(0, data.battery_pct));
     const col = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
-    const status = data.vin_good ? 'Charging' : 'On Battery';
+    const status = data.vin === 'GOOD' ? 'Charging' : 'On Battery';
     const v = (data.vout_mv / 1000).toFixed(2);
     el.innerHTML = `
       <div class="stat-pct-row">
@@ -429,11 +429,11 @@ const UpsUI = {
     const fillW = Math.round(pct * 44 / 100);
     document.getElementById('battery-fill').setAttribute('width', fillW);
     document.getElementById('battery-fill').setAttribute('fill', col);
-    document.getElementById('battery-bolt').setAttribute('opacity', data.vin_good ? '1' : '0');
+    document.getElementById('battery-bolt').setAttribute('opacity', data.vin === 'GOOD' ? '1' : '0');
     document.getElementById('battery-pct-text').textContent = `${pct}%`;
     document.getElementById('battery-pct-text').style.color = col;
     // Shift bolt to center of filled portion when charging
-    if (data.vin_good) {
+    if (data.vin === 'GOOD') {
       const boltX = Math.max(14, Math.min(36, 3 + fillW / 2));
       document.getElementById('battery-bolt').setAttribute('x', boltX);
     }
@@ -1357,18 +1357,51 @@ const LightsUI = {
 
 /* ── Pool UI ────────────────────────────────────────────────────────────── */
 const PoolUI = {
-  _pollInterval: null,
-  _setpoints: { pool: 80, spa: 102 },
-  _modes:     { pool: 'off', spa: 'off' },
+  _pollInterval:    null,
+  _cdInterval:      null,
+  _cdEnd:           0,
+  _cdTotal:         0,
+  _setpoints:       { pool: 80, spa: 102 },
 
   _LIGHT_EFFECTS: [
-    'Alpine White','Sky Blue','Cobalt Blue','Caribbean Blue','Spring Green',
-    'Emerald Green','Emerald Rose','Magenta','Violet','Slow Splash',
-    'Fast Splash','USA!','Fat Tuesday','Disco Tech',
+    { name: 'Alpine White',   color: '#f0f0e8' },
+    { name: 'Sky Blue',       color: '#87ceeb' },
+    { name: 'Cobalt Blue',    color: '#0047ab' },
+    { name: 'Caribbean Blue', color: '#00c5cd' },
+    { name: 'Spring Green',   color: '#00c878' },
+    { name: 'Emerald Green',  color: '#50c878' },
+    { name: 'Emerald Rose',   color: '#9b2335' },
+    { name: 'Magenta',        color: '#ff00cc' },
+    { name: 'Violet',         color: '#8b00ff' },
+    { name: 'Slow Splash',    color: '#4169e1' },
+    { name: 'Fast Splash',    color: '#1e90ff' },
+    { name: 'USA!',           color: '#b22234' },
+    { name: 'Fat Tuesday',    color: '#7b2d8b' },
+    { name: 'Disco Tech',     color: '#ff1493' },
   ],
 
+  _PRESETS: {
+    pool: [
+      { label: 'Pool Pump On',  entity: 'switch.pool_pump',  on: true  },
+      { label: 'Spillover On',  entity: 'switch.spillover',  on: true  },
+    ],
+    spa: [
+      { label: 'Spillover Off', entity: 'switch.spillover',  on: false },
+      { label: 'Spa Pump On',   entity: 'switch.spa_pump',   on: true  },
+      { label: 'Spa Heater On', entity: 'switch.spa_heater', on: true  },
+    ],
+    off: [
+      { label: 'Spa Heater Off',  entity: 'switch.spa_heater',  on: false },
+      { label: 'Spa Pump Off',    entity: 'switch.spa_pump',    on: false },
+      { label: 'Spillover Off',   entity: 'switch.spillover',   on: false },
+      { label: 'Pool Heater Off', entity: 'switch.pool_heater', on: false },
+      { label: 'Pool Pump Off',   entity: 'switch.pool_pump',   on: false },
+      { label: 'Waterfall Off',   entity: 'switch.waterfall',   on: false },
+    ],
+  },
+
   start() {
-    this._buildEffects();
+    this._buildColorGrid();
     this.load();
     if (!this._pollInterval) {
       this._pollInterval = setInterval(() => this.load(), 10000);
@@ -1376,22 +1409,19 @@ const PoolUI = {
   },
 
   stop() {
-    if (this._pollInterval) {
-      clearInterval(this._pollInterval);
-      this._pollInterval = null;
-    }
+    if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
   },
 
-  _buildEffects() {
-    const el = document.getElementById('pool-effects-scroll');
-    if (!el || el.children.length) return;
+  _buildColorGrid() {
+    const grid = document.getElementById('pool-color-grid');
+    if (!grid || grid.children.length) return;
     this._LIGHT_EFFECTS.forEach(fx => {
       const btn = document.createElement('button');
-      btn.className = 'pool-effect-btn';
-      btn.textContent = fx;
-      btn.dataset.effect = fx;
-      btn.onclick = () => this.setLightEffect(fx);
-      el.appendChild(btn);
+      btn.className = 'pool-color-btn';
+      btn.innerHTML = `<span class="pool-color-swatch" style="background:${fx.color}"></span>`
+                    + `<span class="pool-color-name">${fx.name}</span>`;
+      btn.onclick = () => this.applyColor(fx.name);
+      grid.appendChild(btn);
     });
   },
 
@@ -1410,24 +1440,20 @@ const PoolUI = {
       const st = this._goodVal(d.spa_temp);
       document.getElementById('spa-temp-val').textContent = st ? `${st}°F` : '--';
 
-      // Switches
-      [
-        [d.pool_pump,   'pool-pump-btn',       'pool-pump-state'],
-        [d.pool_heater, 'pool-heater-btn',     'pool-heater-state'],
-        [d.spa_pump,    'spa-pump-btn',        'spa-pump-state'],
-        [d.spa_heater,  'spa-heater-btn',      'spa-heater-state'],
-        [d.spillover,   'pool-spillover-btn',  'pool-spillover-state'],
-        [d.waterfall,   'pool-waterfall-btn',  'pool-waterfall-state'],
-      ].forEach(([entity, btnId, stateId]) => this._applySwitch(entity, btnId, stateId));
+      // Read-only indicators
+      this._applyInd(d.pool_pump,   'pool-pump-ind',   'pool-pump-state');
+      this._applyInd(d.pool_heater, 'pool-heater-ind', 'pool-heater-state');
+      this._applyInd(d.spa_pump,    'spa-pump-ind',    'spa-pump-state');
+      this._applyInd(d.spa_heater,  'spa-heater-ind',  'spa-heater-state');
 
-      // Light
+      // Feature toggles
+      this._applyToggle(d.spillover, 'pool-spillover-tog');
+      this._applyToggle(d.waterfall, 'pool-waterfall-tog');
+      this._applyToggle(d.light,     'pool-light-tog');
+
       const lightOn = d.light?.state === 'on';
-      const lBtn = document.getElementById('pool-light-btn');
-      lBtn.classList.toggle('active', lightOn);
-      lBtn.dataset.currentState = d.light?.state || 'off';
-      document.getElementById('pool-light-state').textContent = lightOn ? 'ON' : 'OFF';
-      document.getElementById('pool-effects-row').classList.toggle('hidden', !lightOn);
-      if (lightOn && d.light?.attributes?.effect) this._highlightEffect(d.light.attributes.effect);
+      const effect  = lightOn ? (d.light?.attributes?.effect || '') : '';
+      document.getElementById('pool-light-effect').textContent = effect;
 
       // Setpoints
       this._applySetpoint(d.pool_setpoint, 'pool');
@@ -1435,83 +1461,161 @@ const PoolUI = {
 
       // Water quality
       const qmap = {
-        'q-air-temp': d.air_temp,
-        'q-ph':       d.ph,
-        'q-orp':      d.orp,
-        'q-pool-sal': d.salinity,
-        'q-spa-sal':  d.spa_salinity,
+        'q-air-temp': d.air_temp, 'q-ph': d.ph, 'q-orp': d.orp,
+        'q-pool-sal': d.salinity, 'q-spa-sal': d.spa_salinity,
       };
       Object.entries(qmap).forEach(([id, entity]) => {
-        const v = this._goodVal(entity);
-        document.getElementById(id).textContent = v ?? '--';
+        document.getElementById(id).textContent = this._goodVal(entity) ?? '--';
       });
     } catch { /* silent */ }
   },
 
-  _applySwitch(entity, btnId, stateId) {
+  _applyInd(entity, indId, valId) {
+    const on  = entity?.state === 'on';
+    const ind = document.getElementById(indId);
+    if (ind) ind.classList.toggle('on', on);
+    const el  = document.getElementById(valId);
+    if (el)  el.textContent = on ? 'ON' : 'OFF';
+  },
+
+  _applyToggle(entity, togId) {
+    const tog = document.getElementById(togId);
+    if (!tog) return;
     const on = entity?.state === 'on';
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    btn.classList.toggle('active', on);
-    btn.dataset.currentState = entity?.state || 'off';
-    const el = document.getElementById(stateId);
-    if (el) el.textContent = on ? 'ON' : 'OFF';
+    tog.classList.toggle('active', on);
+    tog.dataset.state = entity?.state || 'off';
   },
 
   _applySetpoint(entity, zone) {
     if (!entity) return;
     this._setpoints[zone] = entity.attributes?.temperature ?? this._setpoints[zone];
-    this._modes[zone] = entity.state || 'off';
-    document.getElementById(`${zone}-setpoint-val`).textContent = `${this._setpoints[zone]}°F`;
-    document.getElementById(`${zone}-mode-off`).classList.toggle('active', this._modes[zone] === 'off');
-    document.getElementById(`${zone}-mode-heat`).classList.toggle('active', this._modes[zone] === 'heat');
+    const el = document.getElementById(`${zone}-setpoint-val`);
+    if (el) el.textContent = `${this._setpoints[zone]}°F`;
   },
 
-  _highlightEffect(effect) {
-    document.querySelectorAll('.pool-effect-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.effect === effect));
+  // ── Preset modes ──────────────────────────────────────────────────────────
+
+  async activatePreset(mode) {
+    if (Date.now() < this._cdEnd) return;
+
+    const steps = this._PRESETS[mode];
+    const wrap  = document.getElementById('pool-action-wrap');
+    const log   = document.getElementById('pool-action-log');
+    wrap.classList.remove('hidden');
+    log.innerHTML = '';
+    ['pool', 'spa', 'off'].forEach(m => {
+      document.getElementById(`preset-${m}`).disabled = true;
+    });
+
+    for (const step of steps) {
+      const row = document.createElement('div');
+      row.className = 'pool-action-row';
+      row.innerHTML = `<span class="pool-action-dot">⏳</span><span>${step.label}</span>`;
+      log.appendChild(row);
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        await API.post('/api/pool/switch', { entity_id: step.entity, on: step.on });
+        row.classList.add('done');
+        row.querySelector('.pool-action-dot').textContent = '✓';
+      } catch {
+        row.classList.add('error');
+        row.querySelector('.pool-action-dot').textContent = '✗';
+      }
+    }
+
+    this._startCooldown(180);
+    setTimeout(() => this.load(), 500);
   },
 
-  async toggleSwitch(entityId, btnId, stateId) {
-    const btn = document.getElementById(btnId);
-    const currentOn = btn?.dataset.currentState === 'on';
+  _startCooldown(seconds) {
+    this._cdEnd   = Date.now() + seconds * 1000;
+    this._cdTotal = seconds * 1000;
+    const cdWrap  = document.getElementById('pool-cooldown-wrap');
+    const ring    = document.getElementById('pool-cd-ring');
+    cdWrap.classList.remove('hidden');
+
+    const CIRC = 2 * Math.PI * 34;
+    ring.style.strokeDasharray  = CIRC;
+    ring.style.strokeDashoffset = CIRC;
+
+    const tick = () => {
+      const remaining = Math.max(0, this._cdEnd - Date.now());
+      ring.style.strokeDashoffset = CIRC * (remaining / this._cdTotal);
+      const secs = Math.ceil(remaining / 1000);
+      document.getElementById('pool-cd-text').textContent =
+        `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+      if (remaining <= 0) {
+        clearInterval(this._cdInterval);
+        this._cdInterval = null;
+        cdWrap.classList.add('hidden');
+        ['pool', 'spa', 'off'].forEach(m => {
+          document.getElementById(`preset-${m}`).disabled = false;
+        });
+      }
+    };
+    if (this._cdInterval) clearInterval(this._cdInterval);
+    this._cdInterval = setInterval(tick, 250);
+    tick();
+  },
+
+  // ── Feature switches ──────────────────────────────────────────────────────
+
+  async toggleFeature(entityId, togId) {
+    const tog = document.getElementById(togId);
+    const on  = tog?.dataset.state === 'on';
     try {
-      await API.post('/api/pool/switch', { entity_id: entityId, on: !currentOn });
-      Toast.show(!currentOn ? 'On' : 'Off');
+      await API.post('/api/pool/switch', { entity_id: entityId, on: !on });
+      tog.classList.toggle('active', !on);
+      tog.dataset.state = !on ? 'on' : 'off';
       setTimeout(() => this.load(), 800);
     } catch { Toast.show('Failed'); }
   },
 
-  async toggleLight() {
-    const btn = document.getElementById('pool-light-btn');
-    const currentOn = btn?.dataset.currentState === 'on';
-    try {
-      await API.post('/api/pool/light', { on: !currentOn });
-      Toast.show(`Light ${!currentOn ? 'on' : 'off'}`);
-      setTimeout(() => this.load(), 800);
-    } catch { Toast.show('Failed to toggle light'); }
+  handleLight() {
+    const tog = document.getElementById('pool-light-tog');
+    if (tog?.dataset.state === 'on') {
+      this._lightOff();
+    } else {
+      document.getElementById('pool-color-overlay').classList.remove('hidden');
+    }
   },
 
-  async setLightEffect(effect) {
+  async _lightOff() {
+    try {
+      await API.post('/api/pool/light', { on: false });
+      const tog = document.getElementById('pool-light-tog');
+      tog.classList.remove('active');
+      tog.dataset.state = 'off';
+      document.getElementById('pool-light-effect').textContent = '';
+      setTimeout(() => this.load(), 800);
+    } catch { Toast.show('Failed'); }
+  },
+
+  async applyColor(effect) {
+    document.getElementById('pool-color-overlay').classList.add('hidden');
     try {
       await API.post('/api/pool/light', { effect });
-      this._highlightEffect(effect);
-      Toast.show(effect);
-    } catch { Toast.show('Failed to set effect'); }
+      const tog = document.getElementById('pool-light-tog');
+      tog.classList.add('active');
+      tog.dataset.state = 'on';
+      document.getElementById('pool-light-effect').textContent = effect;
+      setTimeout(() => this.load(), 800);
+    } catch { Toast.show('Failed'); }
   },
 
-  async setMode(entityId, zone, mode) {
-    try {
-      await API.post('/api/pool/setpoint', { entity_id: entityId, mode });
-      this._modes[zone] = mode;
-      document.getElementById(`${zone}-mode-off`).classList.toggle('active', mode === 'off');
-      document.getElementById(`${zone}-mode-heat`).classList.toggle('active', mode === 'heat');
-      Toast.show(`${zone === 'pool' ? 'Pool' : 'Spa'} heater: ${mode.toUpperCase()}`);
-    } catch { Toast.show('Failed to set mode'); }
+  cancelColor() {
+    document.getElementById('pool-color-overlay').classList.add('hidden');
   },
+
+  // ── Water Quality panel ───────────────────────────────────────────────────
+
+  showQuality()  { document.getElementById('pool-quality-overlay').classList.remove('hidden'); },
+  hideQuality()  { document.getElementById('pool-quality-overlay').classList.add('hidden'); },
+
+  // ── Temperature setpoint ──────────────────────────────────────────────────
 
   async adjustTemp(entityId, zone, delta) {
-    const cur = this._setpoints[zone];
+    const cur  = this._setpoints[zone];
     const next = Math.min(104, Math.max(34, cur + delta));
     if (next === cur) return;
     this._setpoints[zone] = next;

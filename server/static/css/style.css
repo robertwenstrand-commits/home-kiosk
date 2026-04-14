@@ -1592,7 +1592,113 @@ html, body {
 }
 .pool-section-label:first-child { margin-top: 0; }
 
-/* Pool & Spa zones — side by side */
+/* Mode preset buttons */
+.pool-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.pool-preset {
+  padding: 20px 8px 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pool-preset:active:not(:disabled) { opacity: 0.7; }
+.pool-preset:disabled { opacity: 0.35; cursor: default; }
+.pool-preset-icon { font-size: 28px; line-height: 1; }
+.pool-preset-name { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.pool-preset-pool { border-color: var(--accent2); }
+.pool-preset-spa  { border-color: var(--warn); }
+.pool-preset-off  { border-color: var(--danger); }
+.pool-preset-pool:active:not(:disabled) { background: rgba(69,183,209,0.12); }
+.pool-preset-spa:active:not(:disabled)  { background: rgba(255,209,102,0.12); }
+.pool-preset-off:active:not(:disabled)  { background: rgba(255,107,107,0.12); }
+
+/* Action log */
+.pool-action-wrap {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 4px;
+}
+
+.pool-action-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pool-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.pool-action-row.done  { color: var(--success); }
+.pool-action-row.error { color: var(--danger); }
+.pool-action-dot { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+
+/* Cooldown timer */
+.pool-cooldown-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.pool-cd-inner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+.pool-cd-svg {
+  transform: rotate(-90deg);
+  width: 80px;
+  height: 80px;
+}
+.pool-cd-bg   { fill: none; stroke: var(--border); stroke-width: 6; }
+.pool-cd-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 213.63;
+  stroke-dashoffset: 213.63;
+}
+.pool-cd-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.pool-cd-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Pool & Spa status zones */
 .pool-zones {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1615,7 +1721,7 @@ html, body {
 }
 
 .pool-zone-name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text);
   text-transform: uppercase;
@@ -1628,95 +1734,44 @@ html, body {
   color: var(--accent);
 }
 
-.pool-zone-btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.pool-ctrl-btn {
-  background: var(--surface2);
-  border: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 10px 6px;
+/* Read-only pump/heater indicators */
+.pool-inds {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  -webkit-tap-highlight-color: transparent;
-}
-.pool-ctrl-btn:active { background: var(--border); }
-.pool-ctrl-btn.active {
-  border-color: var(--accent);
-  background: rgba(78,205,196,0.1);
-}
-
-.pool-ctrl-icon { font-size: 22px; line-height: 1; }
-.pool-ctrl-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.pool-ctrl-state {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text-muted);
-}
-.pool-ctrl-btn.active .pool-ctrl-state { color: var(--accent); }
-
-/* Set point within each zone */
-.pool-zone-setpoint {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.pool-mode-row {
-  display: flex;
   gap: 6px;
 }
 
-.pool-mode-btn {
-  flex: 1;
-  padding: 7px 10px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.4px;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
-  -webkit-tap-highlight-color: transparent;
-}
-.pool-mode-btn.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(78,205,196,0.1);
-}
-
-.pool-temp-row {
+.pool-ind {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+}
+.pool-ind-icon  { font-size: 15px; line-height: 1; }
+.pool-ind-label { font-size: 12px; font-weight: 600; color: var(--text-muted); flex: 1; }
+.pool-ind-val   { font-size: 13px; font-weight: 800; color: var(--text-muted); }
+.pool-ind.on .pool-ind-val { color: var(--accent); }
+
+/* Temperature setpoint control */
+.pool-setpoint-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
 }
 
-.pool-temp-adj {
-  width: 36px;
-  height: 36px;
+.pool-adj-btn {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: 1.5px solid var(--border);
   background: var(--surface2);
   color: var(--text);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 300;
   cursor: pointer;
   display: flex;
@@ -1725,100 +1780,155 @@ html, body {
   line-height: 1;
   transition: background 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.pool-temp-adj:active { border-color: var(--accent); background: var(--surface); }
+.pool-adj-btn:active { border-color: var(--accent); background: var(--surface); }
 
-.pool-temp-display {
-  font-size: 28px;
+.pool-setpoint-val {
+  font-size: 26px;
   font-weight: 800;
   color: var(--accent);
-  min-width: 76px;
+  min-width: 70px;
   text-align: center;
   letter-spacing: -0.5px;
 }
 
-/* Lights & Features */
-.pool-features-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-}
-
-.pool-feat-btn {
-  background: var(--surface);
-  border: 2px solid transparent;
-  border-radius: var(--radius);
-  padding: 16px 8px;
+/* Feature toggle switches */
+.pool-switches {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  -webkit-tap-highlight-color: transparent;
+  gap: 2px;
 }
-.pool-feat-btn:active { background: var(--surface2); }
-.pool-feat-btn.active {
-  border-color: var(--warn);
-  background: rgba(255,209,102,0.08);
-}
-.pool-feat-btn.active .pool-ctrl-state { color: var(--warn); }
 
-/* Light effects horizontal scroll */
-.pool-effects-row {
-  margin-top: 2px;
-}
-.pool-effects-scroll {
+.pool-sw-row {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 6px 0 10px;
-  scrollbar-width: none;
-}
-.pool-effects-scroll::-webkit-scrollbar { display: none; }
-
-.pool-effect-btn {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border);
+  align-items: center;
+  justify-content: space-between;
   background: var(--surface);
-  color: var(--text-dim);
-  font-size: 15px;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+
+.pool-sw-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pool-sw-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.pool-sw-sub  { font-size: 12px; color: var(--text-muted); }
+
+/* iOS-style toggle */
+.pool-toggle {
+  position: relative;
+  width: 56px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  transition: background 0.25s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pool-toggle.active { background: var(--accent); }
+.pool-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none;
+}
+.pool-toggle.active .pool-toggle-knob { transform: translateX(26px); }
+
+/* Water quality expand button */
+.pool-quality-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  color: var(--text);
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  margin-top: 16px;
+  margin-bottom: 8px;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.pool-effect-btn.active {
-  border-color: var(--warn);
-  color: var(--warn);
-  background: rgba(255,209,102,0.1);
+.pool-quality-btn:active { background: var(--surface2); }
+.pool-quality-chevron { font-size: 22px; color: var(--text-muted); }
+
+/* Pool overlays (quality panel + color picker) */
+.pool-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 150;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.pool-overlay.hidden { display: none; }
+
+.pool-panel {
+  background: var(--bg2);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 20px 16px 32px;
 }
 
-/* Water Quality */
+.pool-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.pool-panel-title { font-size: 18px; font-weight: 700; }
+.pool-panel-close {
+  background: var(--surface2);
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.pool-panel-close:active { background: var(--border); }
+
+/* Quality grid inside panel */
 .pool-quality-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
 }
 
 .pool-quality-card {
   background: var(--surface);
-  border-radius: var(--radius);
-  padding: 14px 10px;
+  border-radius: var(--radius-sm);
+  padding: 16px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   text-align: center;
-}
-/* Last row: 2 cards centred */
-.pool-quality-card:nth-child(4),
-.pool-quality-card:nth-child(5) {
-  grid-column: auto;
 }
 
 .pool-quality-label {
@@ -1830,15 +1940,49 @@ html, body {
 }
 
 .pool-quality-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.1;
 }
 
-.pool-quality-unit {
-  font-size: 11px;
-  color: var(--text-dim);
+.pool-quality-unit { font-size: 11px; color: var(--text-dim); }
+
+/* Color picker grid */
+.pool-color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pool-color-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pool-color-btn:active { background: var(--surface2); }
+
+.pool-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+.pool-color-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────────────── */

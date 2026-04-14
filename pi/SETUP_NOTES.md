@@ -230,34 +230,6 @@ until xset q &>/dev/null; do sleep 0.5; done
 # Force HDMI output mode (fixes display after warm reboot)
 xrandr --output HDMI-1 --mode 1024x600 &
 
-# Dim display to 50% after 5 minutes of no touch input; restore on activity
-(
-  DIM_AFTER=300
-  DIMMED=0
-  while true; do
-    IDLE_MS=$(xprintidle 2>/dev/null || echo 0)
-    IDLE_SEC=$((IDLE_MS / 1000))
-    if [ "$IDLE_SEC" -ge "$DIM_AFTER" ] && [ "$DIMMED" -eq 0 ]; then
-      xrandr --output HDMI-1 --brightness 0.5
-      DIMMED=1
-    elif [ "$IDLE_SEC" -lt "$DIM_AFTER" ] && [ "$DIMMED" -eq 1 ]; then
-      xrandr --output HDMI-1 --brightness 1.0
-      DIMMED=0
-    fi
-    sleep 5
-  done
-) &
-
-(
-  while true; do
-    chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
-      --no-memcheck --disable-translate --disable-features=TranslateUI \
-      --disable-session-crashed-bubble --disable-dev-shm-usage --disable-gpu \
-      --touch-events=enabled --enable-pinch --overscroll-history-navigation=0 \
-      --app=http://192.168.1.41:2004
-    sleep 2
-  done
-) &
 ```
 **Key flags and reasons:**
 - `--disable-gpu` — Hardware GPU causes Chromium to crash on this SoC.

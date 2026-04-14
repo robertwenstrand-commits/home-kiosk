@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Home</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=29">
+  <link rel="stylesheet" href="/static/css/style.css?v=33">
 </head>
 <body>
 
@@ -122,17 +122,6 @@
           <div class="card-body" id="dash-ups-body"></div>
         </div>
 
-        <!-- Camera Preview (hidden until JS confirms camera is configured) -->
-        <div class="dash-card hidden" id="dash-camera" onclick="App.navigate('camera')" style="margin-top:14px">
-          <div class="card-header">
-            <span class="card-icon">&#128247;</span>
-            <span class="card-title">Camera</span>
-            <span class="card-arrow">&#8250;</span>
-          </div>
-          <div class="card-body camera-preview-wrap">
-            <img id="dash-camera-img" src="" alt="Camera">
-          </div>
-        </div>
 
       </div>
     </section>
@@ -170,11 +159,6 @@
     <!-- Calendar -->
     <section class="screen" id="screen-calendar">
       <div class="screen-content">
-        <div class="cal-header">
-          <button class="btn-nav" onclick="CalUI.prevMonth()">&#8249;</button>
-          <h2 id="cal-month-label"></h2>
-          <button class="btn-nav" onclick="CalUI.nextMonth()">&#8250;</button>
-        </div>
         <div id="cal-grid-header" class="cal-grid-header">
           <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span>
           <span>Thu</span><span>Fri</span><span>Sat</span>
@@ -189,10 +173,14 @@
 
     <!-- Camera (hidden until JS confirms camera is configured) -->
     <section class="screen hidden" id="screen-camera">
-      <div class="screen-content camera-fullscreen">
-        <img id="camera-main-img" src="" alt="Live Camera Feed">
-        <div id="camera-overlay">
-          <span class="live-badge">&#9679; LIVE</span>
+      <div class="camera-layout">
+        <div class="camera-sidebar" id="camera-sidebar"></div>
+        <div class="camera-main">
+          <img id="camera-main-img" src="" alt="Live Camera Feed">
+          <div id="camera-overlay">
+            <span class="live-badge">&#9679; LIVE</span>
+            <span id="camera-active-name" class="camera-name-badge"></span>
+          </div>
         </div>
       </div>
     </section>
@@ -347,10 +335,9 @@
 <div id="cal-day-view-overlay"></div>
 <div id="cal-day-view">
   <div id="cal-day-view-header">
-    <div id="cal-day-view-date"></div>
-    <button id="cal-day-view-close" aria-label="Close day view">&#10005;</button>
+    <button id="cal-day-view-close">Close</button>
   </div>
-  <div id="cal-day-view-list"></div>
+  <div id="cal-day-view-cols"></div>
 </div>
 
 <!-- Bottom nav is a direct child of body — keeps it outside any ancestor
@@ -370,7 +357,14 @@
   </button>
   <!-- Camera nav button hidden until JS confirms camera is configured -->
   <button class="nav-btn hidden" id="nav-camera" data-screen="camera" onclick="App.navigate('camera')">
-    <span class="nav-icon">&#128247;</span>
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 8a2 2 0 0 1 2-2h1.5l1.8-2h9.4l1.8 2H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8z" opacity=".85"/>
+        <circle cx="12" cy="12.5" r="3" fill="black" opacity=".5"/>
+        <circle cx="12" cy="12.5" r="1.4" fill="white" opacity=".6"/>
+        <rect x="3" y="9" width="3" height="1.5" rx=".75" fill="white" opacity=".5"/>
+      </svg>
+    </span>
     <span class="nav-label">Camera</span>
   </button>
   <button class="nav-btn" data-screen="pool" onclick="App.navigate('pool')">
@@ -389,6 +383,8 @@
   </div>
 </div>
 
-<script src="/static/js/app.js?v=29"></script>
+<div id="vkb" class="hidden"></div>
+
+<script src="/static/js/app.js?v=37"></script>
 </body>
 </html>

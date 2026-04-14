@@ -169,6 +169,17 @@ def api_force_sync():
 
 # ── Camera API ─────────────────────────────────────────────────────────────────
 
+CAMERAS = [
+    {'id': 'front-door-2', 'name': 'Front Door 2', 'rtsp': 'rtsp://cam:Cassie2000!@192.168.1.89:554/stream0'},
+    {'id': 'pool-cam',     'name': 'Pool Cam',     'rtsp': 'rtsp://192.168.1.41:8554/pool-cam'},
+    {'id': 'back-door',    'name': 'Back Door',    'rtsp': 'rtsp://192.168.1.41:8554/back-door'},
+    {'id': 'garage',       'name': 'Garage',       'rtsp': 'rtsp://192.168.1.41:8554/garage'},
+    {'id': 'garage-2',     'name': 'Garage 2',     'rtsp': 'rtsp://192.168.1.41:8554/garage-2'},
+    {'id': 'troy-cam',     'name': 'Troy Cam',     'rtsp': 'rtsp://192.168.1.41:8554/troy-cam'},
+]
+_CAMERA_MAP = {c['id']: c for c in CAMERAS}
+
+
 @app.route('/api/camera/status')
 def api_camera_status():
     return jsonify({
@@ -177,8 +188,28 @@ def api_camera_status():
     })
 
 
+@app.route('/api/cameras')
+def api_cameras():
+    return jsonify([{'id': c['id'], 'name': c['name']} for c in CAMERAS])
+
+
+@app.route('/api/camera/stream/<camera_id>')
+def api_camera_stream(camera_id):
+    cam = _CAMERA_MAP.get(camera_id)
+    if not cam:
+        abort(404)
+    return Response(
+        camera_svc.generate_frames(cam['rtsp']),
+        mimetype='multipart/x-mixed-replace; boundary=frame',
+        headers={
+            'Cache-Control': 'no-cache, no-store',
+            'Connection': 'keep-alive',
+        }
+    )
+
+
 @app.route('/api/camera/stream')
-def api_camera_stream():
+def api_camera_stream_default():
     if not camera_svc.is_configured():
         abort(404)
     return Response(

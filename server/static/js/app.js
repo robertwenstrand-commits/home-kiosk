@@ -142,11 +142,8 @@ const App = {
   enableCamera() {
     this.cameraEnabled = true;
     if (!this._order.includes('camera')) this._order.push('camera');
-    document.getElementById('dash-camera').classList.remove('hidden');
     document.getElementById('screen-camera').classList.remove('hidden');
     document.getElementById('nav-camera').classList.remove('hidden');
-    // Start camera preview image lazily — only load src when visible
-    document.getElementById('dash-camera-img').src = '/api/camera/stream';
   },
 
   navigate(to) {
@@ -791,20 +788,15 @@ const TasksUI = {
 
 /* ── Calendar UI ────────────────────────────────────────────────────────── */
 const CalUI = {
-  _year: 0,
-  _month: 0,
   _selected: null,
   _events: {},
   _initialized: false,
 
   init() {
+    const now = new Date();
+    if (!this._selected) this._selected = now.toISOString().slice(0, 10);
     if (!this._initialized) {
-      const now = new Date();
-      this._year  = now.getFullYear();
-      this._month = now.getMonth();
-      this._selected = now.toISOString().slice(0, 10);
       this._initialized = true;
-      // Wire day-view close controls once
       document.getElementById('cal-day-view-close')
         .addEventListener('click', () => this._closeDayView());
       document.getElementById('cal-day-view-overlay')
@@ -813,125 +805,153 @@ const CalUI = {
     this._render();
   },
 
-  prevMonth() {
-    this._month--;
-    if (this._month < 0) { this._month = 11; this._year--; }
-    this._render();
-  },
-
-  nextMonth() {
-    this._month++;
-    if (this._month > 11) { this._month = 0; this._year++; }
-    this._render();
-  },
-
-  async _fetchEvents() {
-    const firstDay = new Date(this._year, this._month, 1);
-    const lastDay  = new Date(this._year, this._month + 1, 0);
-    // Include a bit of padding
-    const start = new Date(firstDay); start.setDate(start.getDate() - 7);
-    const end   = new Date(lastDay);  end.setDate(end.getDate() + 7);
-
-    const startStr = start.toISOString().slice(0, 10);
-    const endStr   = end.toISOString().slice(0, 10);
-
+  async _fetchAllEvents() {
+    const now = new Date();
+    const start = new Date(now); start.setFullYear(start.getFullYear() - 2);
+    const end   = new Date(now); end.setFullYear(end.getFullYear() + 2);
     try {
-      const data = await API.get(`/api/calendar/events?start=${startStr}&end=${endStr}`);
-
+      const data = await API.get(`/api/calendar/events?start=${start.toISOString().slice(0,10)}&end=${end.toISOString().slice(0,10)}`);
       if (!data.has_credentials) {
         document.getElementById('cal-no-creds').classList.remove('hidden');
       } else {
         document.getElementById('cal-no-creds').classList.add('hidden');
       }
-
       if (data.last_sync) {
-        document.getElementById('cal-last-sync').textContent = 'Last synced: ' + formatDateTime(new Date(data.last_sync));
+        document.getElementById('cal-last-sync').textContent =
+          'Last synced: ' + formatDateTime(new Date(data.last_sync));
       }
-
       this._events = {};
-      data.events.forEach(ev => {
+      (data.events || []).forEach(ev => {
         const d = ev.start_time.slice(0, 10);
         if (!this._events[d]) this._events[d] = [];
         this._events[d].push(ev);
       });
-    } catch {
-      // offline — use cached data already in _events
-    }
+    } catch { /* offline — use cached */ }
   },
 
   async _render() {
-    await this._fetchEvents();
+    await this._fetchAllEvents();
+    this._buildGrid();
+    this._scrollToToday();
+  },
 
-    const label = new Date(this._year, this._month, 1)
-      .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    document.getElementById('cal-month-label').textContent = label;
-
+  _buildGrid() {
     const grid = document.getElementById('cal-grid');
     grid.innerHTML = '';
-
-    const firstDow = new Date(this._year, this._month, 1).getDay();
-    const daysInMonth = new Date(this._year, this._month + 1, 0).getDate();
     const today = new Date().toISOString().slice(0, 10);
 
-    // Pad with previous month's days
-    for (let i = 0; i < firstDow; i++) {
-      const d = document.createElement('div');
-      d.className = 'cal-day other-month';
-      const prev = new Date(this._year, this._month, -firstDow + i + 1);
-      d.innerHTML = `<span class="cal-day-num">${prev.getDate()}</span>`;
-      grid.appendChild(d);
+    // Start on Sunday of week 1 year ago
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 1);
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+
+    // End on Saturday 1 year from now
+    const endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    endDate.setHours(0, 0, 0, 0);
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+
+    let prevMonthKey = '';
+    const cur = new Date(startDate);
+
+    while (cur <= endDate) {
+      // Collect 7 days for this week
+      const weekDays = [];
+      for (let i = 0; i < 7; i++) {
+        weekDays.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      // Add month separator if a new month starts within this week
+      for (const d of weekDays) {
+        const mk = `${d.getFullYear()}-${d.getMonth()}`;
+        if (mk !== prevMonthKey) {
+          const sep = document.createElement('div');
+          sep.className = 'cal-month-sep';
+          sep.textContent = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          grid.appendChild(sep);
+          prevMonthKey = mk;
+          break;
+        }
+      }
+
+      // Render 7 day cells
+      weekDays.forEach(date => {
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+        const evs = this._events[dateStr] || [];
+        const isToday    = dateStr === today;
+        const isSelected = dateStr === this._selected;
+
+        const d = document.createElement('div');
+        d.className = 'cal-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '');
+        d.dataset.date = dateStr;
+        d.onclick = () => this.selectDay(dateStr);
+        d.innerHTML = `<span class="cal-day-num">${date.getDate()}</span>${_buildDayBulletsHtml(evs)}`;
+        grid.appendChild(d);
+      });
     }
+  },
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${this._year}-${String(this._month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      const evs = this._events[dateStr] || [];
-      const isToday = dateStr === today;
-      const isSelected = dateStr === this._selected;
-
-      const d = document.createElement('div');
-      d.className = 'cal-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '');
-      d.onclick = () => this.selectDay(dateStr);
-
-      d.innerHTML = `<span class="cal-day-num">${day}</span>${_buildDayBulletsHtml(evs)}`;
-      grid.appendChild(d);
-    }
+  _scrollToToday() {
+    const todayEl = document.querySelector('.cal-day.today');
+    if (!todayEl) return;
+    const content = document.getElementById('screen-calendar').querySelector('.screen-content');
+    const headerEl = document.getElementById('cal-grid-header');
+    const headerH = headerEl ? headerEl.offsetHeight : 40;
+    // Put today's row at the top, just below the sticky header
+    setTimeout(() => {
+      content.scrollTop = todayEl.offsetTop - headerH - 4;
+    }, 50);
   },
 
   selectDay(dateStr) {
     this._selected = dateStr;
     document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
-    const grid = document.getElementById('cal-grid');
-    const [, , d] = dateStr.split('-').map(Number);
-    const dayEls = grid.querySelectorAll('.cal-day:not(.other-month)');
-    if (dayEls[d - 1]) dayEls[d - 1].classList.add('selected');
+    const dayEl = document.querySelector(`.cal-day[data-date="${dateStr}"]`);
+    if (dayEl) dayEl.classList.add('selected');
     this._openDayView(dateStr);
   },
 
   _openDayView(dateStr) {
-    const evs = this._events[dateStr] || [];
-    document.getElementById('cal-day-view-date').textContent =
-      new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric',
-      });
+    const cols = document.getElementById('cal-day-view-cols');
+    cols.innerHTML = '';
 
-    const list = document.getElementById('cal-day-view-list');
-    list.innerHTML = '';
-    if (!evs.length) {
-      list.innerHTML = '<div class="cal-no-events">No events this day</div>';
-    } else {
-      evs.forEach(ev => {
-        const el = document.createElement('div');
-        el.className = 'cal-event-item';
-        el.style.borderLeftColor = ev.color || '#4ecdc4';
-        el.innerHTML = `
-          <div class="cal-event-time">${formatEventTime(ev)}</div>
-          <div>
-            <div class="cal-event-title">${esc(ev.title)}</div>
-            ${ev.location    ? `<div class="cal-event-loc">📍 ${esc(ev.location)}</div>`    : ''}
-            ${ev.description ? `<div class="cal-event-loc">${esc(ev.description)}</div>` : ''}
-          </div>`;
-        list.appendChild(el);
-      });
+    for (let i = 0; i < 3; i++) {
+      const date = new Date(dateStr + 'T12:00:00');
+      date.setDate(date.getDate() + i);
+      const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+      const evs = this._events[ds] || [];
+
+      const col = document.createElement('div');
+      col.className = 'cal-day-col' + (i === 0 ? ' cal-day-col-primary' : '');
+
+      const hdr = document.createElement('div');
+      hdr.className = 'cal-day-col-header';
+      hdr.textContent = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      col.appendChild(hdr);
+
+      const list = document.createElement('div');
+      list.className = 'cal-day-col-events';
+      if (!evs.length) {
+        list.innerHTML = '<div class="cal-no-events">No events</div>';
+      } else {
+        evs.forEach(ev => {
+          const el = document.createElement('div');
+          el.className = 'cal-event-item';
+          el.style.borderLeftColor = ev.color || '#4ecdc4';
+          el.innerHTML = `
+            <div class="cal-event-time">${formatEventTime(ev)}</div>
+            <div>
+              <div class="cal-event-title">${esc(ev.title)}</div>
+              ${ev.location    ? `<div class="cal-event-loc">📍 ${esc(ev.location)}</div>` : ''}
+              ${ev.description ? `<div class="cal-event-loc">${esc(ev.description)}</div>` : ''}
+            </div>`;
+          list.appendChild(el);
+        });
+      }
+      col.appendChild(list);
+      cols.appendChild(col);
     }
 
     document.getElementById('cal-day-view').classList.add('open');
@@ -947,19 +967,52 @@ const CalUI = {
 /* ── Camera UI ──────────────────────────────────────────────────────────── */
 const CameraUI = {
   _active: false,
+  _cameras: [],
+  _currentId: null,
 
-  start() {
-    if (!App.cameraEnabled || this._active) return;
+  async start() {
+    if (!App.cameraEnabled) return;
+    if (!this._cameras.length) await this._loadCameras();
     this._active = true;
-    const img = document.getElementById('camera-main-img');
-    if (img) img.src = '/api/camera/stream';
+    if (!this._currentId && this._cameras.length) {
+      this._switchTo(this._cameras[0].id);
+    } else if (this._currentId) {
+      document.getElementById('camera-main-img').src = `/api/camera/stream/${this._currentId}`;
+    }
   },
 
   stop() {
     if (!this._active) return;
     this._active = false;
+    document.getElementById('camera-main-img').src = '';
+  },
+
+  async _loadCameras() {
+    try {
+      this._cameras = await API.get('/api/cameras');
+    } catch { return; }
+    const sidebar = document.getElementById('camera-sidebar');
+    sidebar.innerHTML = '';
+    this._cameras.forEach(cam => {
+      const btn = document.createElement('button');
+      btn.className = 'cam-btn';
+      btn.textContent = cam.name;
+      btn.dataset.id = cam.id;
+      btn.onclick = () => this._switchTo(cam.id);
+      sidebar.appendChild(btn);
+    });
+  },
+
+  _switchTo(id) {
+    this._currentId = id;
     const img = document.getElementById('camera-main-img');
-    if (img) img.src = '';
+    img.src = '';
+    img.src = `/api/camera/stream/${id}`;
+    const cam = this._cameras.find(c => c.id === id);
+    document.getElementById('camera-active-name').textContent = cam ? cam.name : '';
+    document.querySelectorAll('.cam-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.id === id);
+    });
   },
 };
 
@@ -1584,31 +1637,25 @@ function addLongPress(el, onTap, onLongPress, delay = 450) {
 
 /* ── Admin Menu (Home + Pool simultaneous press) ────────────────────────── */
 const AdminUI = {
-  _held: new Set(),
   _comboFired: false,
+  _held: new Set(),
 
   init() {
     const home = document.querySelector('[data-screen="dashboard"]');
     const pool = document.querySelector('[data-screen="pool"]');
+
     [home, pool].forEach(btn => {
-      const screen = btn.dataset.screen;
-      btn.addEventListener('pointerdown', () => this._down(screen), true);
-      btn.addEventListener('pointerup',   () => this._up(screen),   true);
-      btn.addEventListener('pointercancel', () => this._up(screen), true);
+      const id = btn.dataset.screen;
+      btn.addEventListener('touchstart', () => {
+        this._held.add(id);
+        if (this._held.has('dashboard') && this._held.has('pool')) {
+          this._comboFired = true;
+          this.show();
+        }
+      }, { passive: true });
+      btn.addEventListener('touchend',    () => this._held.delete(id));
+      btn.addEventListener('touchcancel', () => this._held.delete(id));
     });
-  },
-
-  _down(screen) {
-    this._held.add(screen);
-    if (this._held.has('dashboard') && this._held.has('pool')) {
-      this._comboFired = true;
-      this.show();
-    }
-  },
-
-  _up(screen) {
-    this._held.delete(screen);
-    if (this._held.size === 0) this._comboFired = false;
   },
 
   show() {
@@ -1617,6 +1664,7 @@ const AdminUI = {
 
   hide() {
     document.getElementById('admin-overlay').classList.add('hidden');
+    this._comboFired = false;
   },
 
   async refresh() {
@@ -1688,6 +1736,124 @@ function formatDateTime(d) {
   });
 }
 
+/* ── Virtual Keyboard ───────────────────────────────────────────────────── */
+const VirtualKeyboard = {
+  _el: null,
+  _target: null,
+  _shift: false,
+  _num: false,
+
+  _alphaRows: [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['SHIFT','z','x','c','v','b','n','m','DEL'],
+    ['?123',' ','DONE'],
+  ],
+  _numRows: [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['-','/','.', ',','?','!','"','\'','(',')',],
+    ['@','#','$','%','&','*','=','+','_','DEL'],
+    ['ABC',' ','DONE'],
+  ],
+
+  init() {
+    this._el = document.getElementById('vkb');
+
+    document.addEventListener('focusin', (e) => {
+      const t = e.target;
+      const isText = (t.tagName === 'INPUT' && t.type !== 'date' && t.type !== 'checkbox' && t.type !== 'range')
+                  || t.tagName === 'TEXTAREA';
+      if (isText) { this._target = t; this._show(); }
+    });
+
+    document.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (!this._el.contains(document.activeElement) && document.activeElement !== this._target) {
+          this._hide();
+        }
+      }, 200);
+    });
+  },
+
+  _show() {
+    this._render();
+    this._el.classList.remove('hidden');
+    const box = document.getElementById('modal-box');
+    if (box) {
+      box.style.paddingBottom = (this._el.offsetHeight + 8) + 'px';
+      setTimeout(() => this._target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    }
+  },
+
+  _hide() {
+    this._el.classList.add('hidden');
+    this._target = null;
+    const box = document.getElementById('modal-box');
+    if (box) box.style.paddingBottom = '';
+  },
+
+  _render() {
+    const rows = this._num ? this._numRows : this._alphaRows;
+    this._el.innerHTML = '';
+    rows.forEach((row, ri) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'vkb-row';
+      if (!this._num && ri === 1) {
+        const sp = document.createElement('div'); sp.style.flex = '0.5'; rowEl.appendChild(sp);
+      }
+      row.forEach(key => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const special = ['SHIFT','DEL','DONE','?123','ABC'].includes(key);
+        let label = key === ' ' ? 'space' : (special ? key : (this._shift ? key.toUpperCase() : key));
+        btn.textContent = label;
+        btn.className = 'vkb-key' + (special || key === ' ' ? '' : '');
+        if (special) btn.classList.add('vkb-special');
+        if (key === ' ') btn.classList.add('vkb-space');
+        if (key === 'SHIFT' && this._shift) btn.classList.add('vkb-shift-active');
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); this._press(key); });
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); this._press(key); }, { passive: false });
+        rowEl.appendChild(btn);
+      });
+      if (!this._num && ri === 1) {
+        const sp = document.createElement('div'); sp.style.flex = '0.5'; rowEl.appendChild(sp);
+      }
+      this._el.appendChild(rowEl);
+    });
+  },
+
+  _press(key) {
+    if (key === 'SHIFT') { this._shift = !this._shift; this._render(); return; }
+    if (key === '?123') { this._num = true; this._render(); return; }
+    if (key === 'ABC') { this._num = false; this._render(); return; }
+    if (!this._target) return;
+    if (key === 'DEL') {
+      const s = this._target.selectionStart, e = this._target.selectionEnd;
+      if (s !== e) { this._insert(''); }
+      else if (s > 0) {
+        const v = this._target.value;
+        this._target.value = v.slice(0, s - 1) + v.slice(s);
+        this._target.setSelectionRange(s - 1, s - 1);
+      }
+    } else if (key === 'DONE') {
+      this._target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    } else {
+      const ch = key === ' ' ? ' ' : (this._shift ? key.toUpperCase() : key);
+      this._insert(ch);
+      if (this._shift && key !== ' ' && key !== 'DONE') { this._shift = false; this._render(); return; }
+    }
+    this._target.dispatchEvent(new Event('input', { bubbles: true }));
+    this._target.focus();
+  },
+
+  _insert(text) {
+    const t = this._target;
+    const s = t.selectionStart, e = t.selectionEnd;
+    t.value = t.value.slice(0, s) + text + t.value.slice(e);
+    t.setSelectionRange(s + text.length, s + text.length);
+  },
+};
+
 /* ── Mobile viewport height fix ─────────────────────────────────────────── */
 // window.innerHeight is the actual visible height on mobile (excludes browser
 // chrome). We write it as --vh so CSS can use calc(var(--vh) * 100) if needed,
@@ -1709,6 +1875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   GarageUI.init();
   GateUI.init();
   AdminUI.init();
+  VirtualKeyboard.init();
   DashUI.refresh();
 
   // Refresh dashboard every 5 minutes while on it

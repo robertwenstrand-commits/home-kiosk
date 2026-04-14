@@ -412,7 +412,7 @@ const UpsUI = {
     const el  = document.getElementById('dash-ups-body');
     const pct = Math.min(100, Math.max(0, data.battery_pct));
     const col = pct > 50 ? 'var(--success)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
-    const status = data.vin_good ? 'Charging' : 'On Battery';
+    const status = data.vin === 'GOOD' ? 'Charging' : 'On Battery';
     const v = (data.vout_mv / 1000).toFixed(2);
     el.innerHTML = `
       <div class="stat-pct-row">
@@ -429,11 +429,11 @@ const UpsUI = {
     const fillW = Math.round(pct * 44 / 100);
     document.getElementById('battery-fill').setAttribute('width', fillW);
     document.getElementById('battery-fill').setAttribute('fill', col);
-    document.getElementById('battery-bolt').setAttribute('opacity', data.vin_good ? '1' : '0');
+    document.getElementById('battery-bolt').setAttribute('opacity', data.vin === 'GOOD' ? '1' : '0');
     document.getElementById('battery-pct-text').textContent = `${pct}%`;
     document.getElementById('battery-pct-text').style.color = col;
     // Shift bolt to center of filled portion when charging
-    if (data.vin_good) {
+    if (data.vin === 'GOOD') {
       const boltX = Math.max(14, Math.min(36, 3 + fillW / 2));
       document.getElementById('battery-bolt').setAttribute('x', boltX);
     }
